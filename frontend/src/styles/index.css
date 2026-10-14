@@ -1,0 +1,164 @@
+@import 'tailwindcss';
+
+/*
+ * Jordan Beauty Hub design tokens.
+ * Change the brand here — every component uses these tokens through
+ * Tailwind utilities (e.g. bg-accent, text-ink, rounded-card, shadow-card).
+ */
+@theme {
+  /* Colours */
+  --color-ink: #111111;          /* primary text, primary buttons */
+  --color-ink-soft: #3d3d3d;     /* secondary text */
+  --color-muted: #686868;        /* helper text (4.9:1 on white) */
+  --color-accent: #d61c63;       /* brand hot pink (5:1 on white) */
+  --color-accent-hover: #b5154f;
+  --color-accent-soft: #fde8f0;  /* pink tint surfaces, badges */
+  --color-cream: #fff6f1;        /* warm secondary surface */
+  --color-canvas: #ffffff;       /* page background */
+  --color-surface: #ffffff;      /* cards */
+  --color-subtle: #f6f4f5;       /* image wells, skeletons */
+  --color-line: #e7e2e4;         /* borders */
+  --color-success: #1f7a4d;
+  --color-success-soft: #e7f5ee;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fff4dc;
+
+  /* Category tile gradients (light top → deep bottom) */
+  --color-tile-rose: #fbc4d8;
+  --color-tile-rose-deep: #e0457f;
+  --color-tile-orchid: #ecc6ec;
+  --color-tile-orchid-deep: #a557a6;
+  --color-tile-peach: #ffd2bd;
+  --color-tile-peach-deep: #ef7f72;
+
+  /* Typography: characterful display face for headings, clean geometric face for text */
+  --font-display: 'Bricolage Grotesque', 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Radii */
+  --radius-control: 0.375rem;    /* buttons, inputs */
+  --radius-card: 0.75rem;        /* cards, panels, modals */
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 4px 12px rgb(17 17 17 / 0.05);
+  --shadow-raised: 0 12px 32px rgb(17 17 17 / 0.12);
+
+  /* Fluid display heading: 1.875rem on small phones up to 3.5rem on desktop */
+  --text-display: clamp(1.875rem, 1.2rem + 3.4vw, 3.5rem);
+  --text-display--line-height: 1.1;
+
+  /* Layout */
+  --container-page: 80rem;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  /*
+   * Keeps focused fields and anchor targets in the page clear of the sticky header.
+   * Not html scroll-padding: controls inside the header can never sit that far down, so the
+   * browser would scroll the page towards the top every time the search box is focused or edited.
+   */
+  main,
+  main * {
+    scroll-margin-top: 7.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    main,
+    main * {
+      scroll-margin-top: 10rem;
+    }
+  }
+
+  [role='dialog'] * {
+    scroll-margin-top: 0;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans;
+    /* Long product names, emails and URLs wrap instead of widening the page. */
+    overflow-wrap: break-word;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* 100dvh tracks mobile browser toolbars; 100vh is the fallback for older browsers. */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .page-container {
+    @apply mx-auto w-full max-w-page px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-title {
+    @apply text-xl font-semibold tracking-tight uppercase sm:text-2xl;
+  }
+
+  .prose-text {
+    @apply text-sm leading-relaxed text-ink-soft whitespace-pre-line;
+  }
+
+  /*
+   * Two range inputs stacked on one track (price slider). The inputs ignore the pointer so
+   * the lower one never blocks the upper one; only the thumbs can be grabbed.
+   */
+  .dual-range {
+    @apply pointer-events-none absolute inset-0 h-full w-full appearance-none bg-transparent outline-none;
+  }
+
+  .dual-range::-webkit-slider-thumb {
+    @apply pointer-events-auto h-5 w-5 cursor-grab appearance-none rounded-full border-2 border-surface bg-ink shadow-card;
+  }
+
+  .dual-range::-moz-range-thumb {
+    @apply pointer-events-auto h-5 w-5 cursor-grab rounded-full border-2 border-surface bg-ink shadow-card;
+  }
+
+  .dual-range:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .dual-range:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
