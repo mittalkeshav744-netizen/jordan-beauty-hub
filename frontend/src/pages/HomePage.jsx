@@ -1,9 +1,16 @@
 import { Link } from 'react-router'
 
-import Button from '../components/common/Button'
 import EmptyState from '../components/common/EmptyState'
 import ErrorMessage from '../components/common/ErrorMessage'
+import Reveal from '../components/common/Reveal'
 import Skeleton from '../components/common/Skeleton'
+import HeroSection from '../components/home/HeroSection'
+import LooksShowcase from '../components/home/LooksShowcase'
+import Marquee from '../components/home/Marquee'
+import QuizPromo from '../components/home/QuizPromo'
+import ShopByBudget from '../components/home/ShopByBudget'
+import ShopByConcern from '../components/home/ShopByConcern'
+import VideoReels from '../components/home/VideoReels'
 import CategoryCard from '../components/products/CategoryCard'
 import ProductGrid from '../components/products/ProductGrid'
 import { useApi } from '../hooks/useApi'
@@ -14,45 +21,6 @@ const BENEFITS = [
   { title: 'Genuine products', text: 'Sourced directly — never grey-market.' },
   { title: 'Easy cancellations', text: 'Cancel any order before it ships.' },
 ]
-
-function HeroBanner() {
-  return (
-    <section className="bg-ink text-white">
-      <div className="page-container grid items-center gap-8 py-10 sm:py-14 md:grid-cols-2 lg:py-20">
-        <div className="space-y-5">
-          <p className="text-xs font-semibold tracking-[0.3em] text-accent uppercase">New season edit</p>
-          <h1 className="text-display font-bold uppercase">
-            Bold colour.
-            <br />
-            Zero compromise.
-          </h1>
-          <p className="max-w-md text-sm text-white/75 sm:text-base">
-            Long-wear makeup and skin-loving care, made for Indian skin tones and every day.
-          </p>
-          <div className="grid grid-cols-2 gap-3 min-[480px]:flex min-[480px]:flex-wrap">
-            <Button variant="accent" size="lg" to="/shop" className="px-4 sm:px-7">
-              Shop now
-            </Button>
-            <Button
-              size="lg"
-              to="/shop?featured=true"
-              className="border border-white bg-transparent px-4 hover:bg-white hover:text-ink sm:px-7"
-            >
-              Bestsellers
-            </Button>
-          </div>
-        </div>
-        {/* Replace with a campaign image once brand photography is supplied. */}
-        <div
-          aria-hidden="true"
-          className="hidden aspect-[4/3] items-center justify-center rounded-card bg-accent md:flex"
-        >
-          <span className="text-8xl font-bold tracking-tighter">JBH</span>
-        </div>
-      </div>
-    </section>
-  )
-}
 
 function CategoryStrip() {
   const { data: categories, isLoading, error, reload } = useApi(() => catalogService.getCategories())
@@ -70,9 +38,9 @@ function CategoryStrip() {
             </li>
           ))
         : categories.map((category, index) => (
-            <li key={category.id} className="w-32 shrink-0 snap-start sm:w-36 lg:w-auto">
+            <Reveal as="li" key={category.id} delay={50 * index} className="w-32 shrink-0 snap-start sm:w-36 lg:w-auto">
               <CategoryCard category={category} index={index} />
-            </li>
+            </Reveal>
           ))}
     </ul>
   )
@@ -100,7 +68,9 @@ function ProductSection({ title, params, viewAllLink }) {
         <EmptyState title="Coming soon" message="New products are on their way." />
       )}
       {!error && (isLoading || data.results.length > 0) && (
-        <ProductGrid products={data?.results ?? []} isLoading={isLoading} skeletonCount={4} />
+        <Reveal>
+          <ProductGrid products={data?.results ?? []} isLoading={isLoading} skeletonCount={4} />
+        </Reveal>
       )}
     </section>
   )
@@ -109,23 +79,29 @@ function ProductSection({ title, params, viewAllLink }) {
 export default function HomePage() {
   return (
     <>
-      <HeroBanner />
+      <HeroSection />
+      <Marquee />
       <section className="page-container py-8 sm:py-10">
         <h2 className="section-title mb-6 text-center">Shop by category</h2>
         <CategoryStrip />
       </section>
+      <QuizPromo />
       <ProductSection title="Bestsellers" params={{ featured: 'true' }} viewAllLink="/shop?featured=true" />
+      <VideoReels />
+      <ShopByConcern />
+      <LooksShowcase />
+      <ShopByBudget />
+      <ProductSection title="New arrivals" params={{ ordering: 'newest' }} viewAllLink="/shop" />
       <section className="bg-cream">
         <ul className="page-container grid gap-6 py-8 sm:grid-cols-3 sm:py-10">
-          {BENEFITS.map((benefit) => (
-            <li key={benefit.title} className="text-center">
+          {BENEFITS.map((benefit, index) => (
+            <Reveal as="li" key={benefit.title} delay={100 * index} className="text-center">
               <p className="text-sm font-semibold tracking-widest uppercase">{benefit.title}</p>
               <p className="mt-1 text-sm text-muted">{benefit.text}</p>
-            </li>
+            </Reveal>
           ))}
         </ul>
       </section>
-      <ProductSection title="New arrivals" params={{ ordering: 'newest' }} viewAllLink="/shop" />
     </>
   )
 }

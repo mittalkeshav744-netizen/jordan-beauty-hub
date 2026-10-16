@@ -1,3 +1,7 @@
+import re
+
+from django.core import mail
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -85,6 +89,55 @@ class AuthenticationTests(APITestCase):
         user.refresh_from_db()
         self.assertFalse(user.is_staff)
         self.assertEqual(user.first_name, "Riya")
+
+
+@override_settings(FRONTEND_URL="https://shop.example.com")
+class PasswordResetTests(APITestCase):
+    def request_reset(self, email):
+        return self.client.post("/api/auth/password-reset/", {"email": email})
+
+    def reset_link_parts(self):
+        match = re.search(r"https://shop\.example\.com/reset-password/([^/\s]+)/([^/\s]+)", mail.outbox[-1].body)
+        return match.group(1), match.group(2)
+
+    def confirm(self, uid, token, new_password="An0ther-strong-phrase!"):
+        return self.client.post(
+            "/api/auth/password-reset/confirm/",
+            {"uid": uid, "token": token, "new_password": new_password},
+        )
+
+    def test_unknown_email_gets_the_same_reply_and_no_email(self):
+        make_user(email="asha@example.com")
+        known = self.request_reset("ASHA@example.com")
+        unknown = self.request_reset("nobody@example.com")
+        self.assertEqual(known.status_code, status.HTTP_200_OK)
+        self.assertEqual(unknown.status_code, status.HTTP_200_OK)
+        self.assertEqual(known.data["detail"], unknown.data["detail"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["asha@example.com"])
+
+    def test_reset_link_changes_password_once(self):
+        user = make_user(email="asha@example.com")
+        self.request_reset("asha@example.com")
+        uid, token = self.reset_link_parts()
+
+        self.assertEqual(self.confirm(uid, token).status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("An0ther-strong-phrase!"))
+        self.assertEqual(self.confirm(uid, token, "Third-str0ng-phrase!").status_code, 400)
+
+    def test_rejects_bad_token_and_weak_password(self):
+        user = make_user(email="asha@example.com")
+        self.request_reset("asha@example.com")
+        uid, token = self.reset_link_parts()
+
+        self.assertEqual(self.confirm(uid, "wrong-token").status_code, 400)
+        self.assertEqual(self.confirm("bm90LWEtdXNlcg", token).status_code, 400)
+        weak = self.confirm(uid, token, "12345678")
+        self.assertEqual(weak.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", weak.data["errors"])
+        user.refresh_from_db()
+        self.assertTrue(user.check_password(DEFAULT_PASSWORD))
 
 
 class AddressTests(APITestCase):

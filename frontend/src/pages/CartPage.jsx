@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
 import CartItem from '../components/cart/CartItem'
+import CheckoutSteps from '../components/cart/CheckoutSteps'
+import FreeShippingProgress from '../components/cart/FreeShippingProgress'
 import OrderSummary from '../components/cart/OrderSummary'
 import Button from '../components/common/Button'
 import EmptyState from '../components/common/EmptyState'
@@ -39,6 +41,7 @@ export default function CartPage() {
 
   return (
     <div className="page-container py-6 sm:py-8">
+      {cart.items.length > 0 && <CheckoutSteps current={0} />}
       <h1 className="section-title mb-4 sm:mb-6">Your bag</h1>
       {error && <ErrorMessage error={error} onRetry={refreshCart} />}
       {!error && cart.items.length === 0 && (
@@ -63,6 +66,7 @@ export default function CartPage() {
           </ul>
           <div className="lg:sticky lg:top-40 lg:self-start">
             <OrderSummary totals={{ subtotal: cart.subtotal }}>
+              <FreeShippingProgress subtotal={cart.subtotal} />
               <p className="text-xs text-muted">Coupons and shipping are applied at checkout.</p>
               {hasProblem && (
                 <p className="text-xs font-medium text-danger">Please fix the highlighted items before checking out.</p>

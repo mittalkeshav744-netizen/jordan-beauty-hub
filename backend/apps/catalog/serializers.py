@@ -1,12 +1,44 @@
+from django.db.models import Count
 from rest_framework import serializers
 
-from .models import Brand, Category, Product, ProductImage, ProductVariant, Review
+from .models import (
+    Brand,
+    Category,
+    Concern,
+    Product,
+    ProductImage,
+    ProductVariant,
+    Review,
+    SkinType,
+)
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description", "image"]
+
+
+class ConcernSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Concern
+        fields = ["id", "name", "slug", "description", "image"]
+
+
+class SkinTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SkinType
+        fields = ["id", "name", "slug", "description"]
+
+
+class RoutineQuerySerializer(serializers.Serializer):
+    skin_type = serializers.SlugRelatedField(
+        slug_field="slug", queryset=SkinType.objects.all(), required=False, allow_null=True
+    )
+    concern = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Concern.objects.filter(is_active=True), required=False, allow_null=True
+    )
+    max_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=False)
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -94,20 +126,33 @@ class ProductListSerializer(serializers.ModelSerializer):
 class ProductDetailSerializer(ProductListSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     variants = serializers.SerializerMethodField()
+    rating_breakdown = serializers.SerializerMethodField()
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + [
             "description",
             "ingredients",
             "how_to_use",
+            "net_quantity",
             "images",
             "variants",
+            "rating_breakdown",
         ]
 
     def get_variants(self, product):
         return ProductVariantSerializer(
             self._active_variants(product), many=True, context=self.context
         ).data
+
+    def get_rating_breakdown(self, product):
+        """Approved review count per star, e.g. {"5": 12, "4": 3, "3": 0, "2": 0, "1": 1}."""
+        counts = dict(
+            product.reviews.filter(is_approved=True)
+            .order_by()
+            .values_list("rating")
+            .annotate(total=Count("id"))
+        )
+        return {str(stars): counts.get(stars, 0) for stars in range(5, 0, -1)}
 
 
 class ReviewSerializer(serializers.ModelSerializer):

@@ -15,6 +15,7 @@ export function useProductFilters() {
       search: searchParams.get('search') ?? '',
       category: splitList(searchParams.get('category')),
       brand: splitList(searchParams.get('brand')),
+      concern: splitList(searchParams.get('concern')),
       minPrice: searchParams.get('min_price') ?? '',
       maxPrice: searchParams.get('max_price') ?? '',
       inStock: searchParams.get('in_stock') === 'true',
@@ -31,6 +32,7 @@ export function useProductFilters() {
     if (filters.search) params.search = filters.search
     if (filters.category.length) params.category = filters.category.join(',')
     if (filters.brand.length) params.brand = filters.brand.join(',')
+    if (filters.concern.length) params.concern = filters.concern.join(',')
     if (filters.inStock) params.in_stock = 'true'
     if (filters.featured) params.featured = 'true'
     return params
@@ -50,6 +52,7 @@ export function useProductFilters() {
     if (next.search) params.set('search', next.search)
     if (next.category.length) params.set('category', next.category.join(','))
     if (next.brand.length) params.set('brand', next.brand.join(','))
+    if (next.concern.length) params.set('concern', next.concern.join(','))
     if (next.minPrice) params.set('min_price', next.minPrice)
     if (next.maxPrice) params.set('max_price', next.maxPrice)
     if (next.inStock) params.set('in_stock', 'true')

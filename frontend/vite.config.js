@@ -10,12 +10,14 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       port: 5173,
-      // The dev server forwards API and media requests to Django so the
+      // The dev server forwards API, admin, static and media requests to Django so the
       // browser sees a single origin (session + CSRF cookies just work).
       // changeOrigin stays off so Django sees the host the browser used: image URLs then
       // point back through this server, which a phone on the same Wi-Fi can reach.
       proxy: {
         '/api': { target: backendUrl, changeOrigin: false },
+        '/admin': { target: backendUrl, changeOrigin: false },
+        '/static': { target: backendUrl, changeOrigin: false },
         '/media': { target: backendUrl, changeOrigin: false },
       },
     },

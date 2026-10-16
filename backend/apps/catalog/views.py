@@ -1,22 +1,28 @@
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Avg, Count, Exists, F, IntegerField, Max, Min, OuterRef, Q, Subquery, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Exists, F, Max, Min, OuterRef, Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from config.exceptions import error_response
 
-from .models import Brand, Category, Product, ProductVariant, Review
+from .models import Brand, Category, Concern, Product, Review, SkinType
 from .serializers import (
     BrandSerializer,
     CategorySerializer,
+    ConcernSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
     ReviewSerializer,
+    RoutineQuerySerializer,
+    SkinTypeSerializer,
 )
-from .services import user_has_received_product
+from .services import annotated_products, build_routine, user_has_received_product
+
+MAX_IDS_PER_REQUEST = 24
+RELATED_PRODUCT_LIMIT = 4
 
 ORDERING_OPTIONS = {
     "newest": ["-created_at"],
@@ -32,36 +38,6 @@ def parse_decimal(value):
         return Decimal(value) if value not in (None, "") else None
     except InvalidOperation:
         return None
-
-
-def annotated_products():
-    """Active products with the values product cards need, without N+1 queries."""
-    active_variants = ProductVariant.objects.filter(product=OuterRef("pk"), is_active=True)
-    cheapest = active_variants.order_by("price", "id")
-    approved_reviews = Review.objects.filter(product=OuterRef("pk"), is_approved=True).values(
-        "product"
-    )
-    return (
-        Product.objects.filter(is_active=True, brand__is_active=True, category__is_active=True)
-        .select_related("brand", "category")
-        .prefetch_related("images", "variants")
-        .annotate(
-            min_price=Subquery(cheapest.values("price")[:1]),
-            min_compare_at_price=Subquery(cheapest.values("compare_at_price")[:1]),
-            is_in_stock=Exists(active_variants.filter(stock_quantity__gt=0)),
-            average_rating=Subquery(
-                approved_reviews.annotate(value=Avg("rating")).values("value")[:1]
-            ),
-            review_count=Coalesce(
-                Subquery(
-                    approved_reviews.annotate(value=Count("id")).values("value")[:1],
-                    output_field=IntegerField(),
-                ),
-                Value(0),
-            ),
-        )
-        .filter(min_price__isnull=False)
-    )
 
 
 def filter_products(queryset, params, *, apply_price=True):
@@ -83,6 +59,13 @@ def filter_products(queryset, params, *, apply_price=True):
     if brand:
         queryset = queryset.filter(brand__slug__in=brand.split(","))
 
+    concern = params.get("concern")
+    if concern:
+        concern_links = Product.concerns.through.objects.filter(
+            product=OuterRef("pk"), concern__slug__in=concern.split(","), concern__is_active=True
+        )
+        queryset = queryset.filter(Exists(concern_links))
+
     if apply_price:
         min_price = parse_decimal(params.get("min_price"))
         if min_price is not None:
@@ -97,6 +80,10 @@ def filter_products(queryset, params, *, apply_price=True):
 
     if params.get("featured") == "true":
         queryset = queryset.filter(is_featured=True)
+
+    ids = [int(part) for part in params.get("ids", "").split(",") if part.strip().isdigit()]
+    if ids:
+        queryset = queryset.filter(pk__in=ids[:MAX_IDS_PER_REQUEST])
 
     return queryset
 
@@ -117,13 +104,66 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
+class ConcernViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Concern.objects.filter(is_active=True)
+    serializer_class = ConcernSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = "slug"
+    pagination_class = None
+
+
+class SkinTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SkinType.objects.all()
+    serializer_class = SkinTypeSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = "slug"
+    pagination_class = None
+
+
+class RoutineView(APIView):
+    """
+    GET /api/catalog/routine/?skin_type=oily&concern=acne&max_price=499
+    Skin quiz result: one product per morning and night step (null when nothing matches yet).
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = RoutineQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        routine = build_routine(**query.validated_data)
+        context = {"request": request}
+
+        def serialize_steps(steps):
+            return [
+                {
+                    "step": step["step"],
+                    "label": step["label"],
+                    "product": ProductListSerializer(step["product"], context=context).data
+                    if step["product"]
+                    else None,
+                }
+                for step in steps
+            ]
+
+        return Response(
+            {
+                "morning": serialize_steps(routine["morning"]),
+                "night": serialize_steps(routine["night"]),
+                "bag_variant_ids": routine["bag_variant_ids"],
+                "total_price": f"{routine['total_price']:.2f}",
+            }
+        )
+
+
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
     GET /api/catalog/products/ supports these query parameters:
-      search, category, brand (comma-separated slugs), min_price, max_price,
-      in_stock=true, featured=true, ordering (newest|price_asc|price_desc|rating|name),
-      page, page_size.
+      search, category, brand, concern (comma-separated slugs), min_price, max_price,
+      in_stock=true, featured=true, ids (comma-separated product ids, at most 24),
+      ordering (newest|price_asc|price_desc|rating|name), page, page_size.
     GET /api/catalog/products/price-range/ takes the same filters and returns {"min", "max"}.
+    GET /api/catalog/products/{slug}/related/ returns up to four products from the same category.
     """
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -148,6 +188,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         products = filter_products(annotated_products(), request.query_params, apply_price=False)
         bounds = products.aggregate(min=Min("min_price"), max=Max("min_price"))
         return Response({key: f"{value:.2f}" if value is not None else None for key, value in bounds.items()})
+
+    @action(detail=True, methods=["get"])
+    def related(self, request, slug=None):
+        product = self.get_object()
+        related = (
+            annotated_products()
+            .filter(category=product.category)
+            .exclude(pk=product.pk)
+            .order_by("-is_in_stock", "-is_featured", "-created_at")[:RELATED_PRODUCT_LIMIT]
+        )
+        return Response(ProductListSerializer(related, many=True, context={"request": request}).data)
 
     @action(
         detail=True,

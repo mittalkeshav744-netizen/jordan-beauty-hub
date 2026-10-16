@@ -60,6 +60,9 @@ INSTALLED_APPS = [
     "apps.cart",
     "apps.orders",
     "apps.payments",
+    "apps.wishlist",
+    "apps.store",
+    "apps.looks",
 ]
 
 MIDDLEWARE = [
@@ -146,6 +149,8 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media")))
+# React production build (`npm run build` in frontend/). Served by config.spa when present.
+FRONTEND_DIST = Path(env("FRONTEND_DIST", str(BASE_DIR.parent / "frontend" / "dist")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -168,6 +173,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "auth": env("AUTH_THROTTLE_RATE", "20/min"),
+        "newsletter": env("NEWSLETTER_THROTTLE_RATE", "10/min"),
     },
 }
 
@@ -178,9 +184,15 @@ REST_FRAMEWORK = {
 # same-origin. CORS is only needed when the frontend is served from a
 # different origin; list those origins explicitly.
 
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000",
+)
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000",
+)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
@@ -201,10 +213,30 @@ if not DEBUG:
 # Store business settings
 # ---------------------------------------------------------------------------
 
+STORE_NAME = "Jordan Beauty Hub"
 STORE_CURRENCY = "INR"
 SHIPPING_FLAT_FEE = Decimal(env("SHIPPING_FLAT_FEE", "0.00"))
 FREE_SHIPPING_THRESHOLD = Decimal(env("FREE_SHIPPING_THRESHOLD", "0.00"))
 MAX_CART_ITEM_QUANTITY = int(env("MAX_CART_ITEM_QUANTITY", "10"))
+# Digits only, with country code (e.g. 91 followed by the 10-digit number). Empty hides the button.
+STORE_WHATSAPP_NUMBER = "".join(ch for ch in env("STORE_WHATSAPP_NUMBER", "") if ch.isdigit())
+# Public address of the storefront; used in links inside emails.
+# Use http://127.0.0.1:8000 when Django serves the built frontend; keep :5173 for Vite.
+FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+# ---------------------------------------------------------------------------
+# Email (password reset)
+# ---------------------------------------------------------------------------
+# The console backend prints emails in the Django terminal. For real delivery set
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend and the SMTP values.
+
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 
 # ---------------------------------------------------------------------------
 # Logging

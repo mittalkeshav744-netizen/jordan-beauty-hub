@@ -52,6 +52,11 @@ export default function LoginPage() {
           required
           {...form.field('password')}
         />
+        <p className="-mt-2 text-right text-sm">
+          <Link to="/forgot-password" className="inline-block py-1 text-accent hover:underline">
+            Forgot password?
+          </Link>
+        </p>
         <Button type="submit" fullWidth size="lg" isLoading={form.isSubmitting}>
           Sign in
         </Button>

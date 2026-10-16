@@ -1,13 +1,13 @@
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 
-import { AuthContext, CartContext, ToastContext } from '../context/contexts'
+import { AuthContext, CartContext, ToastContext, WishlistContext } from '../context/contexts'
 
 /**
  * Render a component with router + context values that tests can override:
  *   renderWithProviders(<Page />, { auth: { isAuthenticated: true }, route: '/shop' })
  */
-export function renderWithProviders(ui, { route = '/', auth = {}, cart = {}, toast = {} } = {}) {
+export function renderWithProviders(ui, { route = '/', auth = {}, cart = {}, wishlist = {}, toast = {} } = {}) {
   const authValue = {
     user: null,
     isAuthenticated: false,
@@ -29,16 +29,29 @@ export function renderWithProviders(ui, { route = '/', auth = {}, cart = {}, toa
     clearLocalCart: vi.fn(),
     ...cart,
   }
+  const wishlistValue = {
+    products: [],
+    count: 0,
+    isLoading: false,
+    error: null,
+    isSaved: () => false,
+    refreshWishlist: vi.fn(),
+    addToWishlist: vi.fn(),
+    removeFromWishlist: vi.fn(),
+    ...wishlist,
+  }
   const toastValue = { showToast: vi.fn(), ...toast }
 
   const result = render(
     <MemoryRouter initialEntries={[route]}>
       <ToastContext.Provider value={toastValue}>
         <AuthContext.Provider value={authValue}>
-          <CartContext.Provider value={cartValue}>{ui}</CartContext.Provider>
+          <CartContext.Provider value={cartValue}>
+            <WishlistContext.Provider value={wishlistValue}>{ui}</WishlistContext.Provider>
+          </CartContext.Provider>
         </AuthContext.Provider>
       </ToastContext.Provider>
     </MemoryRouter>,
   )
-  return { ...result, authValue, cartValue, toastValue }
+  return { ...result, authValue, cartValue, wishlistValue, toastValue }
 }

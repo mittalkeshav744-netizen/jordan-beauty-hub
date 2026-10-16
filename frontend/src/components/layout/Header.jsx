@@ -3,10 +3,12 @@ import { Link } from 'react-router'
 
 import { useAuth } from '../../hooks/useAuth'
 import { useCart } from '../../hooks/useCart'
+import { useWishlist } from '../../hooks/useWishlist'
 import AnnouncementBar from './AnnouncementBar'
 import Logo from './Logo'
 import MainNav from './MainNav'
 import MobileNav from './MobileNav'
+import { HEART_PATH } from '../products/WishlistButton'
 import SearchBar from './SearchBar'
 
 const ICON_BUTTON_CLASSES = 'relative h-11 w-11 shrink-0 items-center justify-center rounded-control hover:bg-subtle'
@@ -43,6 +45,7 @@ export default function Header() {
   const closeSearch = useCallback(() => setIsSearchOpen(false), [])
   const { isAuthenticated, user } = useAuth()
   const { cart } = useCart()
+  const { count: wishlistCount } = useWishlist()
 
   return (
     <>
@@ -93,6 +96,9 @@ export default function Header() {
             >
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+            </IconLink>
+            <IconLink to="/account/wishlist" label="Wishlist" badge={wishlistCount} className="hidden sm:flex">
+              <path d={HEART_PATH} strokeLinejoin="round" />
             </IconLink>
             <IconLink to="/cart" label="Bag" badge={cart.item_count}>
               <path d="M5 8h14l-1 12H6L5 8Z" />

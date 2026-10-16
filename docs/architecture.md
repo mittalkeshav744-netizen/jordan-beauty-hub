@@ -3,12 +3,18 @@
 ## Request flow
 
 ```
-Browser ──► Vite dev server (5173) ──/api, /media──► Django (8000) ──► SQLite
-              serves React app            proxy           DRF views → services → ORM
+Development (hot reload):
+Browser ──► Vite (5173) ──/api, /admin, /media──► Django (8000) ──► SQLite
+              serves React                  proxy           DRF views → services → ORM
+
+After `npm run build` (one server):
+Browser ──► Django (8000) ──► SQLite
+              /api, /admin, /media + frontend/dist/ (config.spa)
 ```
 
-In production a reverse proxy plays the role of the Vite proxy, so the browser always talks
-to one origin and the session + CSRF cookies work without cross-site configuration.
+In production a reverse proxy can still sit in front and serve `frontend/dist/` itself;
+Django serving the build is enough for a single-machine setup. The browser always talks to
+one origin so session + CSRF cookies work without cross-site configuration.
 
 ## Backend layering
 
@@ -35,6 +41,11 @@ User 1─* Order 1─* OrderItem *─0..1 ProductVariant   (SET_NULL; snapshot f
 Order 1─* OrderStatusHistory
 Order 1─1 Payment                        (method, status, amount — separate from Order.status)
 Coupon 1─* CouponRedemption 1─1 Order
+User 1─* WishlistItem *─1 Product        (unique per user+product)
+Product *─* SkinType                     (none = suits every skin type)
+Product *─* Concern                      (shop by concern, skin quiz ranking)
+Look 1─* LookStep *─1 Product, *─0..1 ProductVariant   (variant must belong to the product)
+NewsletterSubscriber                     (unique email)
 ```
 
 Key rules enforced in the database:

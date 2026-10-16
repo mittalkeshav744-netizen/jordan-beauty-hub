@@ -4,6 +4,7 @@ import { MAIN_NAV_LINKS } from '../../constants/navigation'
 import { useAuth } from '../../hooks/useAuth'
 import { isNavLinkActive } from '../../utils/navigation'
 import Drawer from '../common/Drawer'
+import NewBadge from '../common/NewBadge'
 import SearchBar from './SearchBar'
 
 export default function MobileNav({ isOpen, onClose }) {
@@ -23,15 +24,21 @@ export default function MobileNav({ isOpen, onClose }) {
                 to={link.to}
                 onClick={onClose}
                 aria-current={isNavLinkActive(link.to, location) ? 'page' : undefined}
-                className={`${linkClasses} ${isNavLinkActive(link.to, location) ? 'text-accent' : ''}`}
+                className={`${linkClasses} gap-2 ${isNavLinkActive(link.to, location) || link.highlight ? 'text-accent' : ''}`}
               >
                 {link.label}
+                {link.highlight && <NewBadge />}
               </Link>
             </li>
           ))}
           <li>
             <Link to={isAuthenticated ? '/account' : '/login'} onClick={onClose} className={linkClasses}>
               {isAuthenticated ? 'My account' : 'Sign in'}
+            </Link>
+          </li>
+          <li>
+            <Link to="/account/wishlist" onClick={onClose} className={linkClasses}>
+              Wishlist
             </Link>
           </li>
           <li>

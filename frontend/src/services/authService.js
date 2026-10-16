@@ -7,6 +7,11 @@ export const authService = {
   login: (credentials) => apiClient.post('/auth/login/', credentials).then((response) => response.data),
   register: (data) => apiClient.post('/auth/register/', data).then((response) => response.data),
   logout: () => apiClient.post('/auth/logout/'),
+  requestPasswordReset: (email) =>
+    apiClient.post('/auth/password-reset/', { email }).then((response) => response.data),
+  /** data: { uid, token, new_password } from the emailed link. */
+  confirmPasswordReset: (data) =>
+    apiClient.post('/auth/password-reset/confirm/', data).then((response) => response.data),
 }
 
 export const addressService = {

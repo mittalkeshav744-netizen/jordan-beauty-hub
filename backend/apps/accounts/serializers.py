@@ -79,6 +79,16 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField(max_length=64)
+    token = serializers.CharField(max_length=128)
+    new_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
+import CheckoutSteps from '../components/cart/CheckoutSteps'
 import OrderSummary from '../components/cart/OrderSummary'
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
@@ -146,7 +147,7 @@ export default function CheckoutPage() {
       })
       clearLocalCart()
       showToast(`Order ${order.number} placed successfully!`)
-      navigate(`/account/orders/${order.number}`, { replace: true, state: { justPlaced: true } })
+      navigate(`/order-confirmed/${order.number}`, { replace: true })
     } catch (error) {
       setSubmitError(error)
       setIsPlacingOrder(false)
@@ -155,6 +156,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="page-container py-6 sm:py-8">
+      <CheckoutSteps current={1} />
       <h1 className="section-title mb-4 sm:mb-6">Checkout</h1>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-8">

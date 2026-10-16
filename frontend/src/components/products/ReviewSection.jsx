@@ -52,6 +52,34 @@ function ReviewForm({ slug, onCreated, onCancel }) {
   )
 }
 
+function RatingBreakdown({ breakdown, total }) {
+  if (!breakdown || !total) return null
+  return (
+    <ul aria-label="Rating breakdown" className="w-64 max-w-full space-y-1.5">
+      {RATING_OPTIONS.map((stars) => {
+        const count = breakdown[stars] ?? 0
+        const percent = Math.round((count / total) * 100)
+        return (
+          <li key={stars} className="flex items-center gap-2 text-xs">
+            <span className="w-8 shrink-0 text-ink-soft" aria-hidden="true">
+              {stars} ★
+            </span>
+            <span className="h-2 flex-1 overflow-hidden rounded-full bg-subtle" aria-hidden="true">
+              <span className="block h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+            </span>
+            <span className="w-8 shrink-0 text-right text-muted" aria-hidden="true">
+              {count}
+            </span>
+            <span className="sr-only">
+              {stars} star{stars > 1 ? 's' : ''}: {count} review{count === 1 ? '' : 's'}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export default function ReviewSection({ product }) {
   const { isAuthenticated } = useAuth()
   const [isWriting, setIsWriting] = useState(false)
@@ -72,8 +100,9 @@ export default function ReviewSection({ product }) {
           <h2 id="reviews-heading" className="section-title">
             Reviews
           </h2>
-          <div className="mt-2">
+          <div className="mt-2 space-y-3">
             <RatingDisplay rating={product.average_rating} reviewCount={product.review_count} size="lg" />
+            <RatingBreakdown breakdown={product.rating_breakdown} total={product.review_count} />
           </div>
         </div>
         {!isWriting &&

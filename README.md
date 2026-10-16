@@ -30,7 +30,7 @@ API backed by **SQLite**.
 15. [Start the backend](#15-start-the-django-backend)
 16. [API overview](#16-api-endpoint-overview)
 17. [Run tests](#17-run-tests)
-18. [Production build](#18-build-the-frontend-for-production)
+18. [Build and run on one server](#18-build-the-frontend-and-run-on-one-server)
 19. [Git and GitHub](#19-configure-git-and-github)
 20. [Push without node_modules or secrets](#20-push-code-without-uploading-node_modules-or-secrets)
 21. [Troubleshooting](#21-troubleshooting)
@@ -53,9 +53,16 @@ environment-specific value comes from environment variables.
 ## 2. Main features
 
 **Storefront**
-- Home page with hero, category strip, bestsellers and new arrivals
+- Animated home page: hero with floating bestseller photos (or a banner video), scrolling
+  strip, categories, skin-quiz promo, bestsellers, shop by concern, "Get the look", shop by
+  budget and new arrivals. Animations switch off for visitors who ask for reduced motion.
+- **Skin quiz** (`/skin-quiz`): skin type, concern and budget → a morning and night routine
+  picked from the catalogue, with a server-calculated total and "add whole routine to bag"
+- **Get the look** (`/looks`): complete makeup looks with step-by-step products, shades,
+  instructions, an optional video and "add the full look to bag"
 - Shop page with category, brand, price and stock filters, sorting, search and pagination
-  (all stored in the URL, so results can be shared/bookmarked)
+  (all stored in the URL, so results can be shared/bookmarked). The home page "Shop by
+  concern" tiles open concern pages (`/shop?concern=acne`) with their own title and banner.
 - Product detail page: image gallery, shade swatches / size buttons, live price per
   variant, low-stock and sold-out states, ingredients / how-to-use sections
 - Verified-purchase reviews (only after an order containing the product is delivered)
@@ -253,6 +260,10 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 | `SHIPPING_FLAT_FEE` | Shipping charge in ₹ (0 = free) | `49.00` |
 | `FREE_SHIPPING_THRESHOLD` | Order value for free shipping (0 = disabled) | `999.00` |
 | `MAX_CART_ITEM_QUANTITY` | Max units of one item per order | `10` |
+| `STORE_WHATSAPP_NUMBER` | WhatsApp number with country code, digits only. Empty hides the WhatsApp links | `91XXXXXXXXXX` |
+| `FRONTEND_URL` | Storefront address used in password-reset email links | `http://localhost:5173` |
+| `EMAIL_BACKEND` | Console backend prints emails in the Django terminal; use the SMTP backend in production | `django.core.mail.backends.console.EmailBackend` |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` | SMTP details from your mail provider (keep them only in `backend/.env`) | — |
 
 The app stops at start-up with a clear message if a required variable is missing.
 
@@ -273,11 +284,39 @@ Everything prefixed `VITE_` is public (bundled into the JavaScript). Never put s
 ```bash
 cd backend            # with the virtual environment activated
 python manage.py migrate
-python manage.py seed_catalog   # optional: sample categories, products and coupon WELCOME10
+python manage.py seed_catalog          # optional: sample categories, products and coupon WELCOME10
+python manage.py attach_sample_images  # optional: 3 placeholder photos per sample product
 ```
 
-`seed_catalog` only runs when `DJANGO_DEBUG=True`. The sample products have no images —
-upload real photos in Django Admin.
+`seed_catalog` only runs when `DJANGO_DEBUG=True`. It also adds skincare routine steps,
+seven concerns (acne, oily skin, dull skin, pigmentation, dryness, tanning, frizzy hair),
+three sample looks and 2–3 sample reviews per product. The reviews come from six
+`*.sample@example.com` customers that have no usable password. They are demo data for local
+development only: never run `seed_catalog` against the live shop, where only customers with a
+delivered order can review. Running it again only adds what is missing.
+
+`attach_sample_images` (also `DJANGO_DEBUG=True` only) tops every sample product up to three
+photos: free CC0 photos downloaded from the web, then AI-generated photos stored in
+`backend/apps/catalog/sample_images/` (files ending in `-ai.jpg`). Replace them with real
+product photos in Django Admin (Catalog → Products → product → Images).
+
+### Adding videos
+
+The home page uses six AI-generated portrait clips (720×1280, about 1.5 MB each) from
+`frontend/public/videos/`. They are all set in `frontend/src/constants/media.js`:
+
+- **Banner video** (`HERO_VIDEO`, currently `brand-intro.mp4`): fills the banner behind the
+  text on phones and floats in a tall card beside the text on larger screens. Set `src` to
+  `null` to show animated colours and bestseller photos instead.
+- **"Watch & shop" strip** (`VIDEO_REELS`): `serum`, `blush`, `eyeshadow`, `cream`, `palette`
+  and `collection`. Each has a title and a shop link. To add one, copy the MP4 into the folder
+  and add an entry.
+- `start` / `loopEnd` choose which seconds repeat. The clips open on a black frame or end
+  on a logo card, so they loop between those parts.
+- Videos play muted, only while visible, and stay still for visitors who turn on
+  "reduce motion".
+- **Look videos:** upload an MP4 or WebM in Django Admin → Looks.
+- Keep videos short and compressed (under about 5 MB) so phones load them quickly.
 
 ## 13. Create a Django superuser
 
@@ -286,7 +325,8 @@ python manage.py createsuperuser
 ```
 
 You are asked for email, first name, last name and password. Sign in at
-<http://127.0.0.1:8000/admin/>.
+<http://127.0.0.1:8000/admin/>, or at <http://localhost:5173/admin/> while the frontend
+development server is running (it forwards `/admin` and `/static` to Django).
 
 ## 14. Start the frontend development server
 
@@ -295,8 +335,9 @@ cd frontend
 npm run dev
 ```
 
-Open <http://localhost:5173>. The dev server forwards `/api/*` and `/media/*` to Django, so
-start the backend too.
+Open <http://localhost:5173>. The dev server forwards `/api/*`, `/admin/*`, `/static/*` and
+`/media/*` to Django, so start the backend too. For a single-server run without Vite, see
+[section 18](#18-build-the-frontend-and-run-on-one-server).
 
 ### Open it on a phone (same Wi-Fi)
 
@@ -333,22 +374,34 @@ automatically). Errors always look like `{"detail": "...", "errors": {"field": [
 | POST | `/api/auth/register/` | — | Create account and sign in |
 | POST | `/api/auth/login/` | — | Sign in (`email`, `password`) |
 | POST | `/api/auth/logout/` | user | Sign out |
+| POST | `/api/auth/password-reset/` | — | Email a reset link `{email}` (same reply whether or not the account exists) |
+| POST | `/api/auth/password-reset/confirm/` | — | Set a new password `{uid, token, new_password}` |
 | GET | `/api/auth/session/` | — | Signed-in user, or `{"user": null}` |
 | GET / PATCH | `/api/auth/me/` | user | Current user profile |
 | GET / POST | `/api/auth/addresses/` | user | List / create addresses |
 | GET / PATCH / DELETE | `/api/auth/addresses/{id}/` | user | Manage one address |
 | GET | `/api/catalog/categories/` | — | Active categories |
 | GET | `/api/catalog/brands/` | — | Active brands |
-| GET | `/api/catalog/products/` | — | Paginated products. Query: `search`, `category`, `brand` (comma-separated slugs), `min_price`, `max_price`, `in_stock=true`, `featured=true`, `ordering` (`newest`, `price_asc`, `price_desc`, `rating`, `name`), `page`, `page_size` (max 48) |
-| GET | `/api/catalog/products/{slug}/` | — | Product detail with variants and images |
+| GET | `/api/catalog/concerns/` | — | Active skin/hair concerns (shop by concern) |
+| GET | `/api/catalog/skin-types/` | — | Skin types for the skin quiz |
+| GET | `/api/catalog/routine/` | — | Skin quiz result. Query: `skin_type`, `concern` (slugs), `max_price`. Returns morning/night steps, `bag_variant_ids` and `total_price` |
+| GET | `/api/catalog/products/` | — | Paginated products. Query: `search`, `category`, `brand`, `concern` (comma-separated slugs), `min_price`, `max_price`, `in_stock=true`, `featured=true`, `ids` (comma-separated product ids, max 24), `ordering` (`newest`, `price_asc`, `price_desc`, `rating`, `name`), `page`, `page_size` (max 48) |
+| GET | `/api/catalog/products/{slug}/` | — | Product detail with variants, images, net quantity and rating breakdown |
+| GET | `/api/catalog/products/{slug}/related/` | — | Up to four products from the same category |
 | GET / POST | `/api/catalog/products/{slug}/reviews/` | POST: user with delivered order | Reviews |
 | GET / DELETE | `/api/cart/` | user | View / empty the bag |
 | POST | `/api/cart/items/` | user | Add `{variant_id, quantity}` |
 | PATCH / DELETE | `/api/cart/items/{id}/` | user | Change quantity / remove |
+| GET / POST | `/api/wishlist/` | user | Saved products / save `{product_id}` |
+| DELETE | `/api/wishlist/{product_id}/` | user | Remove a saved product |
 | POST | `/api/orders/quote/` | user | Price the bag with optional `coupon_code` |
 | GET / POST | `/api/orders/` | user | Order history / place order `{address_id, idempotency_key, coupon_code?, customer_note?}` |
 | GET | `/api/orders/{number}/` | user | Order detail |
 | POST | `/api/orders/{number}/cancel/` | user | Cancel a pending/confirmed order |
+| GET | `/api/store/settings/` | — | Public shop settings: shipping fee, free-shipping threshold, WhatsApp number |
+| POST | `/api/store/newsletter/` | — | Newsletter signup `{email}` (subscribers are listed in Django Admin) |
+| GET | `/api/looks/` | — | Active looks (cards) |
+| GET | `/api/looks/{slug}/` | — | One look with its steps, `bag_variant_ids` and `total_price` |
 
 ## 17. Run tests
 
@@ -368,13 +421,35 @@ npm run test:watch  # re-run on file changes
 npm run lint
 ```
 
-## 18. Build the frontend for production
+## 18. Build the frontend and run on one server
+
+While you are coding, use **two** terminals (Vite on `:5173` + Django on `:8000`) so the
+UI reloads when you save a file. When you want a single process — like a normal deploy —
+build the frontend once, then only run Django:
 
 ```bash
 cd frontend
-npm run build       # output in frontend/dist/ (ignored by Git)
-npm run preview     # serve the built files locally to check them
+npm run build       # writes frontend/dist/ (ignored by Git)
+
+cd ../backend
+# with the virtual environment activated
+python manage.py runserver 127.0.0.1:8000
 ```
+
+Open <http://127.0.0.1:8000/>. Django serves the shop UI from `frontend/dist/`, plus `/api`,
+`/admin` and `/media`. You do **not** need the Vite terminal.
+
+If `frontend/dist/` is missing, the home page returns a short message telling you to run
+`npm run build`. Rebuild after frontend changes; Django does not watch React files.
+
+Optional checks and email links when using the built shop:
+
+```bash
+npm run preview     # from frontend/: serve dist alone (no API) to inspect the build
+```
+
+Set `FRONTEND_URL=http://127.0.0.1:8000` in `backend/.env` so password-reset emails point at
+the Django address. Keep `http://localhost:5173` while you develop with Vite.
 
 ## 19. Configure Git and GitHub
 
@@ -424,7 +499,8 @@ force-pushing.
 | `database is locked` | Another process held a write lock for over 20 seconds. Close tools that have `db.sqlite3` open (e.g. a DB browser with uncommitted changes) and retry. |
 | `unable to open database file` | The `backend` folder (or the folder in `SQLITE_PATH`) must be writable by the user running Django. |
 | Frontend shows "Cannot reach the server" | Start Django on `127.0.0.1:8000`, or set `VITE_DEV_BACKEND_URL`. |
-| `403 CSRF Failed` / `CSRF cookie not set` | Call the API through the Vite dev server (`localhost:5173`), not a different origin. If the frontend is on another origin, add it to both `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`. |
+| Home page says "Frontend is not built yet" | Run `npm run build` in `frontend/`, then open `http://127.0.0.1:8000/` again (or use Vite on `:5173`). |
+| `403 CSRF Failed` / `CSRF cookie not set` | Use one origin only: either Vite (`localhost:5173`) or Django serving the build (`127.0.0.1:8000`). If the frontend is on another origin, add it to both `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`. |
 | CORS error in the browser console | Add the exact frontend origin (scheme + host + port) to `CORS_ALLOWED_ORIGINS`. |
 | `No migrations to apply` but tables are missing | Check `SQLITE_PATH` points at the expected file. |
 | Migration conflict after pulling | `python manage.py makemigrations --merge`, review, then `migrate`. Never drop a production database to fix migrations. |
@@ -445,11 +521,13 @@ force-pushing.
 3. **Media:** product images are uploaded to `backend/media/` by default. In production
    serve them from the reverse proxy or object storage (e.g. S3-compatible) — Django only
    serves media when `DEBUG=True`.
-4. **Frontend:** `npm ci && npm run build`, then serve `frontend/dist/` as static files.
-   Easiest setup: one domain where the proxy serves `dist/` and forwards `/api`,
-   `/admin`, `/static` and `/media` to Django (no CORS needed). If the frontend is on a
-   different origin, list it in `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`.
-5. **SPA routing:** configure the web server to return `index.html` for unknown paths.
+4. **Frontend:** `npm ci && npm run build`. Django can serve `frontend/dist/` itself
+   (`config.spa`) on a single machine. For a larger deploy, let the reverse proxy serve
+   `dist/` and forward `/api`, `/admin`, `/static` and `/media` to Django (no CORS needed).
+   If the frontend is on a different origin, list it in `CORS_ALLOWED_ORIGINS` and
+   `CSRF_TRUSTED_ORIGINS`.
+5. **SPA routing:** Django already returns `index.html` for unknown paths when it serves
+   the build. If the proxy serves `dist/` instead, configure it the same way.
 6. **Operations:** log aggregation, error monitoring (e.g. Sentry), uptime checks, and
    regular restore tests of database backups.
 
@@ -461,13 +539,20 @@ force-pushing.
 - **Shipping** is a configurable flat fee + free-shipping threshold. No courier/tracking
   integration yet.
 - **Guest checkout is not supported** — customers sign in to use the bag (by design for the MVP).
-- No password reset or email notifications yet (needs an email provider).
-- No wishlist, product variants beyond a single option (shade *or* size), or tax invoices.
+- Password reset emails print in the Django terminal until an SMTP provider is configured
+  (`EMAIL_*` settings). There are no order notification emails yet, and newsletter signups
+  are only collected (no emails are sent from the app).
+- Policy pages (`frontend/src/constants/policies.js`) are drafts; the owner should review them
+  and add business contact details before going live.
+- No product variants beyond a single option (shade *or* size), or tax invoices.
 - Reports are limited to Django Admin lists, filters and date drill-downs.
 - Brand logo and product photography are pending. The header and footer show a square
   "JBH" placeholder mark next to the wordmark. To add the real logo, save it as
   `frontend/public/logo.svg` (or `.png`) and set `STORE_LOGO_SRC = '/logo.svg'` in
   `frontend/src/constants/navigation.js`; also replace `frontend/public/favicon.svg`.
   Products without photos show neutral image placeholders.
+- The skin quiz picks products by their routine step, skin types and concerns. Those must be
+  set on each skincare product in Django Admin; steps with no matching product show
+  "No match yet". The quiz gives product suggestions, not medical advice.
 - SQLite allows one write at a time. That is fine for a small-to-medium store on one
   server; very high order volume or multiple app servers would need a database server.

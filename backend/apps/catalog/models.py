@@ -40,7 +40,47 @@ class Brand(TimeStampedModel):
         return self.name
 
 
+class SkinType(models.Model):
+    """Skin types offered in the skin quiz (Normal, Oily, Dry, ...)."""
+
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=60, unique=True)
+    description = models.CharField(max_length=200, blank=True, help_text="Shown under the option in the quiz.")
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Concern(TimeStampedModel):
+    """A skin or hair concern customers can shop by (Acne, Pigmentation, Hair fall, ...)."""
+
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True)
+    description = models.CharField(max_length=200, blank=True)
+    image = models.ImageField(upload_to="concerns/", blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(TimeStampedModel):
+    class RoutineStep(models.TextChoices):
+        CLEANSER = "cleanser", "Cleanser"
+        TONER = "toner", "Toner"
+        SERUM = "serum", "Serum"
+        MOISTURISER = "moisturiser", "Moisturiser"
+        SUNSCREEN = "sunscreen", "Sunscreen"
+        NIGHT_TREATMENT = "night_treatment", "Night treatment"
+
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
     brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name="products")
@@ -49,6 +89,24 @@ class Product(TimeStampedModel):
     description = models.TextField(blank=True)
     ingredients = models.TextField(blank=True)
     how_to_use = models.TextField(blank=True)
+    net_quantity = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Printed net content, e.g. '4.5 g' or '30 ml'. Leave blank when the options are sizes.",
+    )
+    routine_step = models.CharField(
+        max_length=20,
+        choices=RoutineStep.choices,
+        blank=True,
+        help_text="Where this product fits in the skin quiz routine. Leave blank for makeup and other products.",
+    )
+    skin_types = models.ManyToManyField(
+        SkinType,
+        blank=True,
+        related_name="products",
+        help_text="Skin types this product suits. Leave empty if it suits every skin type.",
+    )
+    concerns = models.ManyToManyField(Concern, blank=True, related_name="products")
     is_active = models.BooleanField(default=True, db_index=True)
     is_featured = models.BooleanField(default=False, db_index=True)
 

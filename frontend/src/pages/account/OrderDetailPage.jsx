@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 
 import OrderSummary from '../../components/cart/OrderSummary'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
@@ -15,7 +15,6 @@ import { formatDate, formatPrice } from '../../utils/format'
 
 export default function OrderDetailPage() {
   const { number } = useParams()
-  const location = useLocation()
   const { showToast } = useToast()
   const { data: order, isLoading, error, reload, setData } = useApi(() => orderService.get(number), [number])
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -41,12 +40,6 @@ export default function OrderDetailPage() {
 
   return (
     <div className="space-y-6">
-      {location.state?.justPlaced && (
-        <div role="status" className="rounded-card border border-success/30 bg-success-soft p-4 text-sm text-success">
-          Thank you! Your order has been placed. You will pay {formatPrice(order.grand_total)} on delivery.
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold break-all">Order {order.number}</h2>

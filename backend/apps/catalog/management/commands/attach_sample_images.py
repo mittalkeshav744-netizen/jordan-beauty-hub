@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -81,6 +82,76 @@ SAMPLE_IMAGES = [
     ]),
 ]
 
+MAX_PRODUCT_IMAGES = 3
+SAMPLE_IMAGE_DIR = Path(__file__).resolve().parents[2] / "sample_images"
+
+# AI-generated placeholder photos in apps/catalog/sample_images/. They follow the CC0 photos above
+# so every sample product has MAX_PRODUCT_IMAGES photos. Replace them with real product photos.
+# (product slug, [(alt text, file name)])
+AI_IMAGES = [
+    ("matte-velvet-lipstick", [
+        ("Matte lipsticks in ruby red, rose nude and berry", "matte-velvet-lipstick-3-ai.jpg"),
+    ]),
+    ("hydrating-lip-balm", [
+        ("Cherry-tinted lip balm on soft lips", "hydrating-lip-balm-3-ai.jpg"),
+    ]),
+    ("second-skin-foundation", [
+        ("Foundation bottles from ivory to cocoa with swatches", "second-skin-foundation-2-ai.jpg"),
+        ("Woman blending foundation with a pink sponge", "second-skin-foundation-3-ai.jpg"),
+    ]),
+    ("blush-stick", [
+        ("Peach and pink blush sticks with swatches", "blush-stick-2-ai.jpg"),
+        ("Smiling woman with a peach-pink blush", "blush-stick-3-ai.jpg"),
+    ]),
+    ("smudge-proof-kajal", [
+        ("Eye lined with jet black kajal", "smudge-proof-kajal-2-ai.jpg"),
+        ("Black kajal pencil with a swatch", "smudge-proof-kajal-3-ai.jpg"),
+    ]),
+    ("volume-mascara", [
+        ("Mascara wand combing through full lashes", "volume-mascara-2-ai.jpg"),
+        ("Black mascara tube with its wand", "volume-mascara-3-ai.jpg"),
+    ]),
+    ("vitamin-c-glow-serum", [
+        ("Vitamin C serum drops beside fresh oranges", "vitamin-c-glow-serum-3-ai.jpg"),
+    ]),
+    ("daily-sunscreen-spf-50", [
+        ("Sunscreen tube with a sun hat and sunglasses", "daily-sunscreen-spf-50-2-ai.jpg"),
+        ("Woman applying dots of sunscreen outdoors", "daily-sunscreen-spf-50-3-ai.jpg"),
+    ]),
+    ("gentle-foaming-face-wash", [
+        ("Face wash tube with water droplets and leaves", "gentle-foaming-face-wash-1-ai.jpg"),
+        ("Hands holding a soft cleanser foam", "gentle-foaming-face-wash-2-ai.jpg"),
+        ("Woman rinsing her face over a basin", "gentle-foaming-face-wash-3-ai.jpg"),
+    ]),
+    ("rose-water-toner", [
+        ("Rose water mist bottle with rose petals", "rose-water-toner-1-ai.jpg"),
+        ("Toner mist sprayed onto glowing skin", "rose-water-toner-2-ai.jpg"),
+        ("Cotton pads with rose toner and petals", "rose-water-toner-3-ai.jpg"),
+    ]),
+    ("oil-free-gel-moisturiser", [
+        ("Open jar of clear gel moisturiser", "oil-free-gel-moisturiser-1-ai.jpg"),
+        ("Swirl of light gel moisturiser texture", "oil-free-gel-moisturiser-2-ai.jpg"),
+        ("Woman smoothing gel moisturiser onto her cheek", "oil-free-gel-moisturiser-3-ai.jpg"),
+    ]),
+    ("overnight-repair-cream", [
+        ("Night cream jar on a bedside table", "overnight-repair-cream-1-ai.jpg"),
+        ("Rich whipped night cream texture", "overnight-repair-cream-2-ai.jpg"),
+        ("Woman applying night cream before bed", "overnight-repair-cream-3-ai.jpg"),
+    ]),
+    ("repair-hair-oil", [
+        ("Hair oil drop with hibiscus and almonds", "repair-hair-oil-2-ai.jpg"),
+        ("Long, glossy, smooth dark hair", "repair-hair-oil-3-ai.jpg"),
+    ]),
+    ("shea-body-lotion", [
+        ("Body lotion pump bottle with shea butter", "shea-body-lotion-2-ai.jpg"),
+        ("Hand smoothing body lotion onto an arm", "shea-body-lotion-3-ai.jpg"),
+    ]),
+    ("blending-sponge", [
+        ("Two pink teardrop blending sponges", "blending-sponge-2-ai.jpg"),
+        ("Damp pink sponge with a dot of foundation", "blending-sponge-3-ai.jpg"),
+    ]),
+]
+
 # Category tiles blend these over a gradient (multiply), so each photo is cropped to the product and
 # its light background is lifted to pure white.
 # (category slug, source page, download URL, crop box as fractions (left, top, right, bottom), white point)
@@ -140,30 +211,49 @@ def fetch_image(url, crop=None, white_point=255):
     return output.getvalue()
 
 
+def planned_photos(slug):
+    """The sample photos for a product, in order, as (alt text, file name, source, download URL).
+
+    Downloaded photos have no file name; local AI photos have no URL.
+    """
+    downloads = dict(SAMPLE_IMAGES).get(slug, [])
+    local = dict(AI_IMAGES).get(slug, [])
+    return [(alt, "", source, url) for alt, source, url in downloads] + [
+        (alt, filename, str(SAMPLE_IMAGE_DIR / filename), None) for alt, filename in local
+    ]
+
+
 class Command(BaseCommand):
-    help = "Attach CC0 placeholder photos to the sample products and categories created by seed_catalog."
+    help = (
+        f"Give the sample products created by seed_catalog up to {MAX_PRODUCT_IMAGES} placeholder photos "
+        "each, and the categories a tile photo. Photos already attached are not added again."
+    )
 
     def handle(self, *args, **options):
         if not settings.DEBUG:
             raise CommandError("attach_sample_images is for development only (DJANGO_DEBUG must be True).")
 
         attached = 0
-        for slug, images in SAMPLE_IMAGES:
+        for slug in dict.fromkeys(slug for slug, _ in SAMPLE_IMAGES + AI_IMAGES):
             product = Product.objects.filter(slug=slug).first()
             if product is None:
                 self.stdout.write(f"Skipped {slug}: product not found.")
                 continue
-            if product.images.exists():
-                self.stdout.write(f"Skipped {slug}: already has images.")
-                continue
-            for order, (alt_text, source, url) in enumerate(images):
-                try:
-                    content = fetch_image(url)
-                except OSError as error:
-                    self.stderr.write(f"Could not download {source}: {error}")
+            count = product.images.count()
+            existing_alts = set(product.images.values_list("alt_text", flat=True))
+            for alt_text, filename, source, url in planned_photos(slug):
+                if count >= MAX_PRODUCT_IMAGES:
+                    break
+                if alt_text in existing_alts:
                     continue
-                photo = ProductImage(product=product, alt_text=alt_text, sort_order=order)
-                photo.image.save(f"{slug}-{order + 1}.jpg", ContentFile(content), save=True)
+                try:
+                    content = fetch_image(url) if url else Path(source).read_bytes()
+                except OSError as error:
+                    self.stderr.write(f"Could not load {source}: {error}")
+                    continue
+                photo = ProductImage(product=product, alt_text=alt_text, sort_order=count)
+                photo.image.save(filename or f"{slug}-{count + 1}.jpg", ContentFile(content), save=True)
+                count += 1
                 attached += 1
 
         for slug, source, url, crop, white_point in CATEGORY_IMAGES:

@@ -4,6 +4,7 @@ import Button from '../common/Button'
 import PriceDisplay from '../common/PriceDisplay'
 import ProductImage from '../common/ProductImage'
 import RatingDisplay from '../common/RatingDisplay'
+import WishlistButton from './WishlistButton'
 
 /**
  * Product tile. Products with several shades/sizes link to the detail page
@@ -16,23 +17,26 @@ export default function ProductCard({ product, onAddToCart, isAdding = false }) 
 
   return (
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface transition-shadow duration-200 hover:shadow-card">
-      <Link to={productUrl} className="relative block aspect-square overflow-hidden bg-subtle">
-        <ProductImage
-          src={product.primary_image?.image}
-          alt={product.primary_image?.alt_text || product.name}
-          className="h-full w-full transition-transform duration-300 ease-standard group-hover:scale-105"
-        />
+      <div className="relative">
+        <Link to={productUrl} className="block aspect-square overflow-hidden bg-subtle">
+          <ProductImage
+            src={product.primary_image?.image}
+            alt={product.primary_image?.alt_text || product.name}
+            className="h-full w-full transition-transform duration-300 ease-standard group-hover:scale-105"
+          />
+        </Link>
         {!product.is_in_stock && (
-          <span className="absolute top-2 left-2 rounded-control bg-ink px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase sm:top-3 sm:left-3 sm:px-2 sm:py-1 sm:text-[0.65rem]">
+          <span className="pointer-events-none absolute top-2 left-2 rounded-control bg-ink px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase sm:top-3 sm:left-3 sm:px-2 sm:py-1 sm:text-[0.65rem]">
             Sold out
           </span>
         )}
         {product.is_in_stock && product.is_featured && (
-          <span className="absolute top-2 left-2 rounded-control bg-accent px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase sm:top-3 sm:left-3 sm:px-2 sm:py-1 sm:text-[0.65rem]">
+          <span className="pointer-events-none absolute top-2 left-2 rounded-control bg-accent px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase sm:top-3 sm:left-3 sm:px-2 sm:py-1 sm:text-[0.65rem]">
             Bestseller
           </span>
         )}
-      </Link>
+        <WishlistButton product={product} className="absolute top-2 right-2 sm:top-3 sm:right-3" />
+      </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
         <p className="truncate text-[0.65rem] font-semibold tracking-widest text-muted uppercase sm:text-[0.7rem]">

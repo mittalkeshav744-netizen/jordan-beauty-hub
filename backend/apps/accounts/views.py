@@ -1,4 +1,5 @@
 from django.contrib.auth import login, logout
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -6,8 +7,18 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config.exceptions import error_response
+
 from .models import Address
-from .serializers import AddressSerializer, LoginSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    AddressSerializer,
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
+from .services import PasswordResetError, reset_password, send_password_reset_email
 
 
 @method_decorator(ensure_csrf_cookie, name="get")
@@ -43,6 +54,38 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login(request, serializer.validated_data["user"])
         return Response(UserSerializer(serializer.validated_data["user"]).data)
+
+
+@method_decorator(csrf_protect, name="post")
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        send_password_reset_email(serializer.validated_data["email"])
+        return Response(
+            {"detail": "If an account uses this email, we have sent a link to reset the password."}
+        )
+
+
+@method_decorator(csrf_protect, name="post")
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            reset_password(data["uid"], data["token"], data["new_password"])
+        except PasswordResetError as error:
+            return error_response(str(error))
+        except DjangoValidationError as error:
+            return error_response(error.messages[0], errors={"new_password": error.messages})
+        return Response({"detail": "Your password has been changed. Please sign in."})
 
 
 class LogoutView(APIView):

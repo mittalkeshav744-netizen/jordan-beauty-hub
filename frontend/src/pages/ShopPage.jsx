@@ -19,18 +19,30 @@ import { catalogService } from '../services/catalogService'
 
 const PAGE_SIZE = 12
 
-function getPageTitle(filters, categories) {
+const findOnly = (slugs, list) => (slugs.length === 1 ? list.find((item) => item.slug === slugs[0]) : undefined)
+
+function getPageTitle(filters, categories, concerns) {
   if (filters.search) return `Results for “${filters.search}”`
   if (filters.featured) return 'Bestsellers'
   if (filters.category.length === 1) {
-    return categories.find((category) => category.slug === filters.category[0])?.name ?? 'Shop'
+    return findOnly(filters.category, categories)?.name ?? 'Shop'
   }
+  const concern = findOnly(filters.concern, concerns)
+  if (concern) return `For ${concern.name.toLowerCase()}`
   return 'Shop all'
 }
 
-/** Banner content: the category's own photo and colour, or a mix of categories for wider listings. */
-function getBanner(filters, categories) {
+/** Banner content: the category's or concern's own photo and colour, or a mix of categories for wider listings. */
+function getBanner(filters, categories, concerns) {
   const index = filters.category.length === 1 ? categories.findIndex((item) => item.slug === filters.category[0]) : -1
+  const concern = filters.category.length === 0 ? findOnly(filters.concern, concerns) : undefined
+  if (concern) {
+    return {
+      headline: concern.description || `Picked for ${concern.name.toLowerCase()}`,
+      images: concern.image ? [concern.image] : [],
+      gradient: categoryGradient(concerns.indexOf(concern)),
+    }
+  }
   if (index >= 0) {
     const category = categories[index]
     return {
@@ -51,6 +63,7 @@ export default function ShopPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const categories = useApi(() => catalogService.getCategories())
   const brands = useApi(() => catalogService.getBrands())
+  const concerns = useApi(() => catalogService.getConcerns())
   const priceBounds = useApi(() => catalogService.getPriceRange(filterParams), [filterParams])
   const products = useApi(
     () => catalogService.getProducts({ ...apiParams, page_size: PAGE_SIZE }),
@@ -58,7 +71,8 @@ export default function ShopPage() {
   )
   const closeFilters = useCallback(() => setIsFilterOpen(false), [])
   const categoryList = categories.data ?? []
-  const title = getPageTitle(filters, categoryList)
+  const concernList = concerns.data ?? []
+  const title = getPageTitle(filters, categoryList, concernList)
   const results = products.data?.results ?? []
   const productCount = products.data?.count ?? 0
   const activeFilterCount =
@@ -83,7 +97,7 @@ export default function ShopPage() {
         (categories.isLoading ? (
           <Skeleton className="h-48 rounded-card sm:h-64 lg:h-72" />
         ) : (
-          <CategoryBanner {...getBanner(filters, categoryList)} />
+          <CategoryBanner {...getBanner(filters, categoryList, concernList)} />
         ))}
 
       <div className="py-6 text-center sm:py-8">

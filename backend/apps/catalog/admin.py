@@ -2,7 +2,17 @@ from django.contrib import admin, messages
 from django.db import transaction
 from django.utils.html import format_html
 
-from .models import Brand, Category, Product, ProductImage, ProductVariant, Review, StockMovement
+from .models import (
+    Brand,
+    Category,
+    Concern,
+    Product,
+    ProductImage,
+    ProductVariant,
+    Review,
+    SkinType,
+    StockMovement,
+)
 from .services import InsufficientStockError, change_stock
 
 
@@ -20,6 +30,21 @@ class BrandAdmin(admin.ModelAdmin):
     list_editable = ["is_active"]
     prepopulated_fields = {"slug": ["name"]}
     search_fields = ["name"]
+
+
+@admin.register(Concern)
+class ConcernAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug", "is_active", "sort_order"]
+    list_editable = ["is_active", "sort_order"]
+    prepopulated_fields = {"slug": ["name"]}
+    search_fields = ["name"]
+
+
+@admin.register(SkinType)
+class SkinTypeAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug", "sort_order"]
+    list_editable = ["sort_order"]
+    prepopulated_fields = {"slug": ["name"]}
 
 
 class ProductImageInline(admin.TabularInline):
@@ -53,10 +78,11 @@ class ProductVariantInline(admin.TabularInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ["name", "brand", "category", "is_active", "is_featured", "updated_at"]
-    list_filter = ["is_active", "is_featured", "category", "brand"]
+    list_filter = ["is_active", "is_featured", "category", "brand", "routine_step", "concerns"]
     list_editable = ["is_active", "is_featured"]
     search_fields = ["name", "variants__sku", "brand__name"]
     prepopulated_fields = {"slug": ["name"]}
+    filter_horizontal = ["skin_types", "concerns"]
     list_select_related = ["brand", "category"]
     inlines = [ProductVariantInline, ProductImageInline]
 

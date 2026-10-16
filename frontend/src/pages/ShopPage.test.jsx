@@ -9,6 +9,7 @@ vi.mock('../services/catalogService', () => ({
   catalogService: {
     getCategories: vi.fn(),
     getBrands: vi.fn(),
+    getConcerns: vi.fn(),
     getProducts: vi.fn(),
     getPriceRange: vi.fn(),
   },
@@ -34,6 +35,9 @@ const PRODUCT = {
 beforeEach(() => {
   catalogService.getCategories.mockResolvedValue([{ id: 1, name: 'Lips', slug: 'lips' }])
   catalogService.getBrands.mockResolvedValue([])
+  catalogService.getConcerns.mockResolvedValue([
+    { id: 1, name: 'Acne & breakouts', slug: 'acne', description: 'Clear pores and calm breakouts.', image: null },
+  ])
   catalogService.getPriceRange.mockResolvedValue({ min: '249.00', max: '1199.00' })
 })
 
@@ -110,6 +114,16 @@ describe('ShopPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Remove filter: ₹500 – ₹900' }))
     expect(catalogService.getProducts.mock.lastCall[0]).not.toHaveProperty('min_price')
     expect(catalogService.getProducts.mock.lastCall[0]).not.toHaveProperty('max_price')
+  })
+
+  it('opens a concern page from the home page tiles', async () => {
+    catalogService.getProducts.mockResolvedValue({ count: 1, results: [PRODUCT] })
+    renderWithProviders(<ShopPage />, { route: '/shop?concern=acne' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'For acne & breakouts' })).toBeInTheDocument()
+    expect(screen.getByText('Clear pores and calm breakouts.')).toBeInTheDocument()
+    expect(catalogService.getProducts).toHaveBeenCalledWith(expect.objectContaining({ concern: 'acne' }))
+    expect(screen.queryByRole('checkbox', { name: 'Acne & breakouts' })).not.toBeInTheDocument()
   })
 
   it('sends signed-out shoppers to sign in when adding to bag', async () => {

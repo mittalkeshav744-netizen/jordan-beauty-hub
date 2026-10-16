@@ -1,3 +1,5 @@
+import { POLICY_LINKS } from './policies'
+
 export const STORE_NAME = 'Jordan Beauty Hub'
 
 /**
@@ -17,6 +19,25 @@ export const MAIN_NAV_LINKS = [
   { label: 'Skincare', to: '/shop?category=skincare' },
   { label: 'Haircare', to: '/shop?category=haircare' },
   { label: 'Body Care', to: '/shop?category=body-care' },
+  { label: 'Skin quiz', to: '/skin-quiz', highlight: true },
+  { label: 'Get the look', to: '/looks', highlight: true },
+]
+
+/** Scrolling strip under the home page banner. */
+export const MARQUEE_ITEMS = [
+  'Cash on delivery across India',
+  'Made for Indian skin tones',
+  'Genuine products',
+  'Take the free skin quiz',
+  'Shop complete looks',
+]
+
+/** "Shop by budget" tiles on the home page. Prices use the shop's existing price filter. */
+export const BUDGET_LINKS = [
+  { label: 'Under', amount: '₹299', to: '/shop?max_price=299' },
+  { label: 'Under', amount: '₹499', to: '/shop?max_price=499' },
+  { label: 'Under', amount: '₹999', to: '/shop?max_price=999' },
+  { label: 'Premium', amount: '₹1000+', to: '/shop?min_price=1000' },
 ]
 
 /** `show: 'guest'` links appear only when signed out, `show: 'member'` only when signed in. */
@@ -36,9 +57,14 @@ export const FOOTER_LINK_GROUPS = [
       { label: 'Sign in', to: '/login', show: 'guest' },
       { label: 'My account', to: '/account', show: 'member' },
       { label: 'My orders', to: '/account/orders' },
+      { label: 'Wishlist', to: '/account/wishlist' },
       { label: 'Addresses', to: '/account' },
       { label: 'Bag', to: '/cart' },
     ],
+  },
+  {
+    title: 'Help',
+    links: POLICY_LINKS,
   },
 ]
 

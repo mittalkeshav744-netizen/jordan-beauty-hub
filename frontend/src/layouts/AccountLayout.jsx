@@ -6,6 +6,7 @@ import { useToast } from '../hooks/useToast'
 const ACCOUNT_LINKS = [
   { label: 'Profile & addresses', to: '/account', end: true },
   { label: 'My orders', to: '/account/orders' },
+  { label: 'Wishlist', to: '/account/wishlist' },
 ]
 
 export default function AccountLayout() {

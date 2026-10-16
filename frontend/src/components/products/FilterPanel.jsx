@@ -62,7 +62,7 @@ const toggleValue = (list, value) =>
   list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
 
 /**
- * Categories are chosen from the main navigation, so they are not repeated here.
+ * Categories and concerns are chosen from the navigation and home page, so they are not repeated here.
  * filters: { brand: string[], minPrice, maxPrice, inStock }
  * priceBounds: { min, max } decimal strings, or null while loading / when there is nothing to range.
  * onChange(partialFilters) merges the change into the URL query string.
