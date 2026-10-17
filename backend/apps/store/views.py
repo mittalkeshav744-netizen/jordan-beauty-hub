@@ -4,7 +4,8 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import NewsletterSignupSerializer
+from .chat import ask_beauty_assistant
+from .serializers import BeautyChatSerializer, NewsletterSignupSerializer
 from .services import public_store_settings, subscribe_to_newsletter
 
 
@@ -26,3 +27,20 @@ class NewsletterSignupView(APIView):
         subscribe_to_newsletter(serializer.validated_data["email"])
         # Same reply for new and existing subscribers, so the form can't be used to look up emails.
         return Response({"detail": "Thanks for subscribing! Watch your inbox for offers and new launches."})
+
+
+@method_decorator(csrf_protect, name="post")
+class BeautyChatView(APIView):
+    """Full AI beauty assistant (Google Gemini). API key never leaves the server."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "chat"
+
+    def post(self, request):
+        serializer = BeautyChatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reply = ask_beauty_assistant(
+            serializer.validated_data["message"],
+            serializer.validated_data.get("history") or [],
+        )
+        return Response({"reply": reply})

@@ -16,4 +16,9 @@ export const storeService = {
   },
   subscribeToNewsletter: (email) =>
     apiClient.post('/store/newsletter/', { email }).then((response) => response.data),
+  /** Beauty assistant (Google Gemini on the server). history: [{ role, content }]. */
+  chat: ({ message, history = [] }) =>
+    apiClient
+      .post('/store/chat/', { message, history }, { timeout: 30000 })
+      .then((response) => response.data),
 }

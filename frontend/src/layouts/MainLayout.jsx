@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
+import BeautyChat from '../components/common/BeautyChat'
 import { PageLoader } from '../components/common/Spinner'
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
@@ -30,6 +31,7 @@ export default function MainLayout() {
         </Suspense>
       </main>
       <Footer />
+      <BeautyChat />
     </div>
   )
 }

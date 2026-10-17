@@ -67,6 +67,8 @@ environment-specific value comes from environment variables.
   variant, low-stock and sold-out states, ingredients / how-to-use sections
 - Verified-purchase reviews (only after an order containing the product is delivered)
 - Responsive header with search, mobile slide-out menu, bag badge, toast notifications
+- **Beauty assistant** (floating “Ask us” chat): full AI answers via Google Gemini about
+  products, COD, delivery and returns. Needs `GOOGLE_GEMINI_API_KEY` in `backend/.env`
 
 **Accounts and checkout**
 - Email + password registration and sign-in (Django sessions, CSRF protected)
@@ -261,6 +263,9 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 | `FREE_SHIPPING_THRESHOLD` | Order value for free shipping (0 = disabled) | `999.00` |
 | `MAX_CART_ITEM_QUANTITY` | Max units of one item per order | `10` |
 | `STORE_WHATSAPP_NUMBER` | WhatsApp number with country code, digits only. Empty hides the WhatsApp links | `91XXXXXXXXXX` |
+| `GOOGLE_GEMINI_API_KEY` | Google AI Studio key for the beauty chat. Empty hides the “Ask us” button | (from aistudio.google.com/apikey) |
+| `GEMINI_MODEL` | Gemini model id | `gemini-flash-latest` |
+| `CHAT_THROTTLE_RATE` | Max chat requests per client | `20/min` |
 | `FRONTEND_URL` | Storefront address used in password-reset email links | `http://localhost:5173` |
 | `EMAIL_BACKEND` | Console backend prints emails in the Django terminal; use the SMTP backend in production | `django.core.mail.backends.console.EmailBackend` |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` | SMTP details from your mail provider (keep them only in `backend/.env`) | — |
@@ -398,8 +403,9 @@ automatically). Errors always look like `{"detail": "...", "errors": {"field": [
 | GET / POST | `/api/orders/` | user | Order history / place order `{address_id, idempotency_key, coupon_code?, customer_note?}` |
 | GET | `/api/orders/{number}/` | user | Order detail |
 | POST | `/api/orders/{number}/cancel/` | user | Cancel a pending/confirmed order |
-| GET | `/api/store/settings/` | — | Public shop settings: shipping fee, free-shipping threshold, WhatsApp number |
+| GET | `/api/store/settings/` | — | Public shop settings: shipping fee, free-shipping threshold, WhatsApp number, `chat_enabled` |
 | POST | `/api/store/newsletter/` | — | Newsletter signup `{email}` (subscribers are listed in Django Admin) |
+| POST | `/api/store/chat/` | — | Beauty assistant `{message, history?}`. Needs `GOOGLE_GEMINI_API_KEY`. Returns `{reply}` |
 | GET | `/api/looks/` | — | Active looks (cards) |
 | GET | `/api/looks/{slug}/` | — | One look with its steps, `bag_variant_ids` and `total_price` |
 

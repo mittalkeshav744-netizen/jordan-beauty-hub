@@ -174,8 +174,13 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": env("AUTH_THROTTLE_RATE", "20/min"),
         "newsletter": env("NEWSLETTER_THROTTLE_RATE", "10/min"),
+        "chat": env("CHAT_THROTTLE_RATE", "20/min"),
     },
 }
+
+# Google Gemini — beauty assistant chat (`/api/store/chat/`). Leave empty to disable the widget.
+GOOGLE_GEMINI_API_KEY = env("GOOGLE_GEMINI_API_KEY", "")
+GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
 
 # ---------------------------------------------------------------------------
 # CORS / CSRF / cookies
