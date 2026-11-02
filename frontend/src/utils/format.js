@@ -11,6 +11,18 @@ const paiseFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
 })
 
+/** Price × quantity in paise, so 299.00 × 39 is 11661.00 and not a float. */
+export function multiplyMoney(unitPrice, quantity) {
+  const paise = Math.round(Number(unitPrice) * 100)
+  return ((paise * quantity) / 100).toFixed(2)
+}
+
+/** Sum decimal money strings without binary-float drift. */
+export function sumMoney(values) {
+  const paise = values.reduce((total, value) => total + Math.round(Number(value) * 100), 0)
+  return (paise / 100).toFixed(2)
+}
+
 /** Prices arrive from the API as decimal strings ("699.00"). Display only. */
 export function formatPrice(value) {
   if (value === null || value === undefined || value === '') return ''
@@ -32,5 +44,12 @@ const dateFormatter = new Intl.DateTimeFormat('en-IN', {
 })
 
 export function formatDate(value) {
-  return value ? dateFormatter.format(new Date(value)) : ''
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  try {
+    return dateFormatter.format(date)
+  } catch {
+    return ''
+  }
 }

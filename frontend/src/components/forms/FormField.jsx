@@ -2,7 +2,8 @@ import { useId } from 'react'
 
 const CONTROL_CLASSES =
   'w-full min-w-0 rounded-control border bg-surface px-3 text-base text-ink placeholder:text-muted sm:text-sm ' +
-  'transition-colors focus:border-ink focus:outline-none focus-visible:outline-2 ' +
+  'shadow-[0_1px_2px_rgb(17_17_17/0.03)] transition-[border-color,box-shadow] duration-200 ease-standard ' +
+  'focus:border-ink focus:outline-none focus-visible:outline-2 ' +
   'focus-visible:outline-offset-0 focus-visible:outline-accent disabled:bg-subtle'
 
 /**

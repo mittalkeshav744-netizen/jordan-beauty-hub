@@ -8,19 +8,28 @@ import ForgotPasswordPage from './ForgotPasswordPage'
 import ResetPasswordPage from './ResetPasswordPage'
 
 vi.mock('../services/authService', () => ({
-  authService: { requestPasswordReset: vi.fn(), confirmPasswordReset: vi.fn() },
+  authService: {
+    requestPasswordReset: vi.fn(),
+    confirmPasswordReset: vi.fn(),
+    confirmPasswordResetWithOtp: vi.fn(),
+  },
 }))
 
 describe('ForgotPasswordPage', () => {
-  it('sends the reset request and shows the reply', async () => {
-    authService.requestPasswordReset.mockResolvedValue({ detail: 'If an account uses this email, we sent a link.' })
+  it('sends the reset request and shows the OTP form', async () => {
+    authService.requestPasswordReset.mockResolvedValue({
+      detail: 'If an account uses this email, we have sent a 6-digit code.',
+    })
     renderWithProviders(<ForgotPasswordPage />)
 
     await userEvent.type(screen.getByLabelText(/email/i), ' asha@example.com ')
-    await userEvent.click(screen.getByRole('button', { name: /send reset link/i }))
+    await userEvent.click(screen.getByRole('button', { name: /send reset code/i }))
 
     expect(authService.requestPasswordReset).toHaveBeenCalledWith('asha@example.com')
-    expect(await screen.findByText('If an account uses this email, we sent a link.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('If an account uses this email, we have sent a 6-digit code.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/6-digit code/i)).toBeInTheDocument()
   })
 })
 

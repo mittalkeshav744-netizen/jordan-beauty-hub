@@ -1,16 +1,17 @@
 import { Link, useLocation } from 'react-router'
 
-import { MAIN_NAV_LINKS } from '../../constants/navigation'
+import { useNavCategories } from '../../hooks/useNavCategories'
 import { isNavLinkActive } from '../../utils/navigation'
 import NewBadge from '../common/NewBadge'
 
 export default function MainNav() {
   const location = useLocation()
+  const { links } = useNavCategories()
 
   return (
     <nav aria-label="Main" className="hidden border-t border-line lg:block">
-      <ul className="page-container flex items-center justify-center gap-6 xl:gap-8">
-        {MAIN_NAV_LINKS.map((link) => {
+      <ul className="page-container flex flex-wrap items-center justify-center gap-x-5 gap-y-0 xl:gap-x-7">
+        {links.map((link) => {
           const isActive = isNavLinkActive(link.to, location)
           return (
             <li key={link.to}>

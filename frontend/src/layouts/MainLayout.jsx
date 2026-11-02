@@ -1,16 +1,29 @@
 import { Suspense, useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router'
+import { Outlet, useLocation, useSearchParams } from 'react-router'
 
 import BeautyChat from '../components/common/BeautyChat'
 import { PageLoader } from '../components/common/Spinner'
 import Footer from '../components/layout/Footer'
 import Header from '../components/layout/Header'
+import { startOwnerContentMap } from '../utils/ownerContentMap'
 
 function ScrollToTopOnNavigate() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+  return null
+}
+
+function OwnerContentMapBootstrap() {
+  const [searchParams] = useSearchParams()
+  const enabled = searchParams.get('ownerMap') === '1'
+
+  useEffect(() => {
+    if (!enabled) return undefined
+    return startOwnerContentMap()
+  }, [enabled])
+
   return null
 }
 
@@ -24,6 +37,7 @@ export default function MainLayout() {
         Skip to content
       </a>
       <ScrollToTopOnNavigate />
+      <OwnerContentMapBootstrap />
       <Header />
       <main id="main-content" className="flex-1">
         <Suspense fallback={<PageLoader />}>

@@ -9,7 +9,8 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ["method", "status"]
     search_fields = ["order__number", "provider_reference"]
     list_select_related = ["order"]
-    readonly_fields = ["order", "method", "amount", "currency", "created_at", "updated_at"]
+    readonly_fields = ["order", "method", "amount", "currency", "provider_reference", "created_at", "updated_at"]
+    fields = ["order", "method", "status", "amount", "currency", "provider_reference", "paid_at", "created_at", "updated_at"]
 
     def has_add_permission(self, request):
         return False

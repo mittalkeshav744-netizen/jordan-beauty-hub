@@ -46,18 +46,18 @@ describe('SkinQuizPage', () => {
     const user = userEvent.setup()
     renderWithProviders(<SkinQuizPage />, { route: '/skin-quiz' })
 
-    expect(await screen.findByRole('heading', { name: 'What is your skin type?' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'How does your skin usually feel?' })).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: /oily/i }))
 
-    expect(await screen.findByRole('heading', { name: 'What would you most like to fix?' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'What do you want to improve most?' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /back/i }))
     await user.click(await screen.findByRole('button', { name: /dry/i }))
     await user.click(await screen.findByRole('button', { name: /acne/i }))
 
-    expect(screen.getByRole('heading', { name: 'What is your budget per product?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'How much do you want to spend per product?' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /under ₹499/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Your personal routine' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your matched routine' })).toBeInTheDocument()
     expect(catalogService.getRoutine).toHaveBeenCalledWith({ skin_type: 'dry', concern: 'acne', max_price: '499' })
     expect(screen.getAllByText('Gentle Foaming Face Wash')).toHaveLength(2)
     expect(screen.getByText(/no match yet/i)).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('SkinQuizPage', () => {
   it('sends no concern or price limit when those questions are skipped', async () => {
     renderWithProviders(<SkinQuizPage />, { route: '/skin-quiz?skin=oily&concern=none&budget=any' })
 
-    expect(await screen.findByRole('heading', { name: 'Your personal routine' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Your matched routine' })).toBeInTheDocument()
     expect(catalogService.getRoutine).toHaveBeenCalledWith({ skin_type: 'oily' })
   })
 
@@ -88,6 +88,6 @@ describe('SkinQuizPage', () => {
     renderWithProviders(<SkinQuizPage />, { route: '/skin-quiz?skin=oily&concern=acne&budget=999' })
 
     await user.click(await screen.findByRole('button', { name: /retake quiz/i }))
-    expect(await screen.findByRole('heading', { name: 'What is your skin type?' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'How does your skin usually feel?' })).toBeInTheDocument()
   })
 })

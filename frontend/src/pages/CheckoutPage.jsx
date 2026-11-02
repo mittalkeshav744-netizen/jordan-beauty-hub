@@ -210,8 +210,10 @@ export default function CheckoutPage() {
               {cart.items.map((item) => (
                 <li key={item.id} className="flex justify-between gap-3 p-4 text-sm">
                   <span className="min-w-0">
-                    {item.variant.product_name} <span className="text-muted">({item.variant.name})</span> ×{' '}
-                    {item.quantity}
+                    {item.variant.product_name} <span className="text-muted">({item.variant.name})</span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {formatPrice(item.variant.price)} × {item.quantity}
+                    </span>
                   </span>
                   <span className="shrink-0 font-medium whitespace-nowrap">{formatPrice(item.line_total)}</span>
                 </li>

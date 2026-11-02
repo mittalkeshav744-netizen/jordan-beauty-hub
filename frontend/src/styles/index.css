@@ -38,15 +38,43 @@
   --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Radii */
-  --radius-control: 0.375rem;    /* buttons, inputs */
-  --radius-card: 0.75rem;        /* cards, panels, modals */
+  --radius-control: 0.5rem;      /* inputs, selects */
+  --radius-btn: 0.625rem;        /* buttons — soft capsule, not full pill */
+  --radius-card: 0.875rem;       /* cards, panels, modals */
 
   /* Shadows */
   --shadow-card: 0 1px 2px rgb(17 17 17 / 0.05), 0 4px 12px rgb(17 17 17 / 0.05);
   --shadow-raised: 0 12px 32px rgb(17 17 17 / 0.12);
 
-  /* Fluid display heading: 1.875rem on small phones up to 3.5rem on desktop */
-  --text-display: clamp(1.875rem, 1.2rem + 3.4vw, 3.5rem);
+  /* Owner Studio only — scoped via .manage-shell (does not restyle the public shop) */
+  --color-studio: #faf6f3;
+  --color-studio-rail: #1a1216;
+  --color-studio-rail-mid: #261c22;
+  --color-berry: #9b1848;
+  --color-berry-hover: #7e1239;
+  --shadow-studio: 0 1px 2px rgb(26 18 22 / 0.04), 0 8px 24px rgb(26 18 22 / 0.06);
+
+  /* Footer / auth atmosphere (luxury beauty — used via component classes) */
+  --color-footer-charcoal: #111014;
+  --color-footer-plum: #261321;
+  --color-footer-burgundy: #42182f;
+  --color-footer-blush: #e8a3c0;
+  --color-footer-lavender: #b9a4d8;
+  --color-auth-ivory: #faf6f2;
+  --color-auth-blush: #e8b7c8;
+  --color-auth-plum: #54243f;
+  --color-auth-berry: #803b5b;
+  --color-auth-charcoal: #242024;
+
+  /* Packaging documents (Owner Portal print / preview) */
+  --color-pack-ivory: #faf6f2;
+  --color-pack-blush: #e8b7c8;
+  --color-pack-plum: #54243f;
+  --color-pack-berry: #803b5b;
+  --color-pack-charcoal: #242024;
+
+  /* Fluid display heading: denser on phones, full size from tablet up */
+  --text-display: clamp(1.625rem, 1.05rem + 2.8vw, 3.5rem);
   --text-display--line-height: 1.1;
 
   /* Layout */
@@ -102,6 +130,124 @@
       transform: none;
     }
   }
+
+  @keyframes manage-focus-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 10px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  @keyframes footer-gradient-shift {
+    0%,
+    100% {
+      background-position: 0% 40%;
+    }
+    50% {
+      background-position: 100% 60%;
+    }
+  }
+
+  @keyframes footer-glow-drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: translate(4%, -6%) scale(1.08);
+      opacity: 0.85;
+    }
+  }
+
+  @keyframes footer-particle {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.55;
+    }
+    85% {
+      opacity: 0.35;
+    }
+    100% {
+      transform: translateY(-48px) scale(0.7);
+      opacity: 0;
+    }
+  }
+
+  @keyframes footer-shimmer {
+    0% {
+      transform: translateX(-30%) skewX(-12deg);
+      opacity: 0;
+    }
+    30% {
+      opacity: 0.12;
+    }
+    70% {
+      opacity: 0.08;
+    }
+    100% {
+      transform: translateX(130%) skewX(-12deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes auth-gradient-drift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes auth-orb {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(6%, -8%) scale(1.1);
+    }
+  }
+
+  @keyframes auth-float-card {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes auth-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  --animate-footer-gradient: footer-gradient-shift 22s ease-in-out infinite;
+  --animate-footer-glow: footer-glow-drift 16s ease-in-out infinite;
+  --animate-footer-particle: footer-particle 9s ease-in-out infinite;
+  --animate-footer-shimmer: footer-shimmer 14s ease-in-out infinite;
+  --animate-auth-gradient: auth-gradient-drift 18s ease-in-out infinite;
+  --animate-auth-orb: auth-orb 14s ease-in-out infinite;
+  --animate-auth-float: auth-float-card 7s ease-in-out infinite;
+  --animate-auth-panel: auth-panel-in 0.55s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 @layer base {
@@ -111,13 +257,41 @@
   }
 
   /*
+   * Hide scrollbars everywhere (shop + owner portal) while keeping scroll.
+   * Wheel, trackpad, touch, and keyboard scrolling still work.
+   */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /*
    * Keeps focused fields and anchor targets in the page clear of the sticky header.
    * Not html scroll-padding: controls inside the header can never sit that far down, so the
    * browser would scroll the page towards the top every time the search box is focused or edited.
    */
   main,
   main * {
-    scroll-margin-top: 7.5rem;
+    scroll-margin-top: 6.5rem;
+  }
+
+  @media (min-width: 40rem) {
+    main,
+    main * {
+      scroll-margin-top: 7.5rem;
+    }
   }
 
   @media (min-width: 64rem) {
@@ -127,14 +301,55 @@
     }
   }
 
+  /* Modals must not inherit page scroll-margin (focus jumps the dialog layout). */
+  dialog,
+  dialog *,
+  [role='dialog'],
   [role='dialog'] * {
-    scroll-margin-top: 0;
+    scroll-margin: 0 !important;
+    scroll-margin-top: 0 !important;
+  }
+
+  /* Modal overlay root — keep above sticky Manage chrome; isolate layout from page scroll. */
+  .jbh-modal-root {
+    overscroll-behavior: contain;
+    contain: layout paint;
+  }
+
+  .jbh-modal-root [role='dialog'] {
+    scroll-margin: 0 !important;
   }
 
   body {
     @apply bg-canvas text-ink font-sans;
     /* Long product names, emails and URLs wrap instead of widening the page. */
     overflow-wrap: break-word;
+  }
+
+  /*
+   * Tailwind preflight sets cursor: default on buttons. Restore the hand cursor
+   * on interactive controls so the app feels like other modern web software.
+   */
+  a[href],
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for],
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled),
+  input[type='submit']:not(:disabled),
+  input[type='button']:not(:disabled),
+  input[type='reset']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'],
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
   }
 
   h1,
@@ -164,6 +379,58 @@
 }
 
 @layer components {
+  /* Flash target after Website content map → manage deep-link (?focus=…). */
+  .manage-focus-highlight {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 3px;
+    animation: manage-focus-pulse 1.1s ease-out 2;
+  }
+
+  /*
+   * Owner Studio shell — warm ivory workspace + plum rail.
+   * Only applied under ManageLayout; storefront keeps global tokens.
+   */
+  .manage-shell {
+    background-color: var(--color-studio);
+    color: var(--color-ink);
+  }
+
+  .manage-shell .manage-rail {
+    background: linear-gradient(180deg, var(--color-studio-rail-mid) 0%, var(--color-studio-rail) 55%);
+  }
+
+  .manage-shell .manage-panel {
+    @apply rounded-card border border-line bg-surface;
+    box-shadow: var(--shadow-studio);
+  }
+
+  .manage-shell .manage-kpi {
+    @apply rounded-card border border-line bg-surface p-4 transition-[box-shadow,transform] duration-200 ease-standard;
+    box-shadow: var(--shadow-studio);
+  }
+
+  .manage-shell .manage-kpi:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card);
+  }
+
+  .manage-shell .manage-kpi-featured {
+    @apply rounded-card p-4 text-white transition-[box-shadow,transform] duration-200 ease-standard;
+    background: linear-gradient(145deg, var(--color-berry) 0%, var(--color-accent) 100%);
+    box-shadow: var(--shadow-studio);
+  }
+
+  .manage-shell .manage-kpi-featured:hover {
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .manage-shell .manage-kpi:hover,
+    .manage-shell .manage-kpi-featured:hover {
+      transform: none;
+    }
+  }
+
   /* 100dvh tracks mobile browser toolbars; 100vh is the fallback for older browsers. */
   .app-shell {
     display: flex;
@@ -173,11 +440,16 @@
   }
 
   .page-container {
-    @apply mx-auto w-full max-w-page px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-page px-3 sm:px-6 lg:px-8;
   }
 
   .section-title {
-    @apply text-xl font-semibold tracking-tight uppercase sm:text-2xl;
+    @apply text-lg font-semibold tracking-tight uppercase sm:text-xl md:text-2xl;
+  }
+
+  /* Shared vertical rhythm: tighter on phones, unchanged from sm up */
+  .section-y {
+    @apply py-5 sm:py-8 lg:py-10;
   }
 
   .prose-text {
@@ -208,5 +480,242 @@
   .dual-range:focus-visible::-moz-range-thumb {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
+  }
+
+  /* Kept for existing className usage; bars are already hidden globally. */
+  .scrollbar-dark,
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* —— Premium beauty footer atmosphere —— */
+  .footer-beauty {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    color: white;
+    background:
+      linear-gradient(
+        125deg,
+        var(--color-footer-charcoal) 0%,
+        var(--color-footer-plum) 38%,
+        var(--color-footer-burgundy) 72%,
+        var(--color-footer-charcoal) 100%
+      );
+    background-size: 220% 220%;
+    animation: var(--animate-footer-gradient);
+  }
+
+  .footer-beauty__fx {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .footer-beauty__glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(48px);
+    animation: var(--animate-footer-glow);
+  }
+
+  .footer-beauty__glow--a {
+    top: -18%;
+    left: -8%;
+    width: min(42vw, 22rem);
+    height: min(42vw, 22rem);
+    background: color-mix(in srgb, var(--color-footer-blush) 35%, transparent);
+  }
+
+  .footer-beauty__glow--b {
+    right: -10%;
+    bottom: -22%;
+    width: min(48vw, 26rem);
+    height: min(48vw, 26rem);
+    background: color-mix(in srgb, var(--color-footer-lavender) 28%, transparent);
+    animation-delay: -5s;
+  }
+
+  .footer-beauty__glow--c {
+    top: 35%;
+    left: 42%;
+    width: min(28vw, 14rem);
+    height: min(28vw, 14rem);
+    background: color-mix(in srgb, var(--color-footer-burgundy) 55%, transparent);
+    animation-delay: -9s;
+  }
+
+  .footer-beauty__shimmer {
+    position: absolute;
+    inset: -20% -40%;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      color-mix(in srgb, var(--color-footer-blush) 22%, transparent) 48%,
+      color-mix(in srgb, white 18%, transparent) 52%,
+      transparent 65%
+    );
+    animation: var(--animate-footer-shimmer);
+  }
+
+  .footer-beauty__particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--color-footer-blush) 80%, white);
+    animation: var(--animate-footer-particle);
+  }
+
+  .footer-beauty__content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .footer-beauty__link {
+    position: relative;
+    display: inline-block;
+    padding-block: 0.35rem;
+    color: rgb(255 255 255 / 0.72);
+    transition:
+      color 0.25s var(--ease-standard),
+      opacity 0.25s var(--ease-standard),
+      transform 0.25s var(--ease-standard);
+  }
+
+  .footer-beauty__link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0.15rem;
+    width: 100%;
+    height: 1px;
+    transform: scaleX(0);
+    transform-origin: left;
+    background: var(--color-footer-blush);
+    transition: transform 0.28s var(--ease-standard);
+  }
+
+  .footer-beauty__link:hover,
+  .footer-beauty__link:focus-visible {
+    color: var(--color-footer-blush);
+    transform: translateY(-1px);
+  }
+
+  .footer-beauty__link:hover::after,
+  .footer-beauty__link:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  .footer-beauty__logo {
+    display: inline-flex;
+    border-radius: var(--radius-control);
+    transition: filter 0.3s var(--ease-standard), transform 0.3s var(--ease-standard);
+  }
+
+  .footer-beauty__logo:hover,
+  .footer-beauty__logo:focus-visible {
+    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--color-footer-blush) 55%, transparent));
+    transform: translateY(-1px);
+  }
+
+  /* —— Auth split-screen atmosphere —— */
+  .auth-beauty {
+    position: relative;
+    isolation: isolate;
+    min-height: min(100%, 40rem);
+    background: var(--color-auth-ivory);
+  }
+
+  .auth-beauty__stage {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(
+        145deg,
+        var(--color-auth-ivory) 0%,
+        var(--color-auth-blush) 42%,
+        color-mix(in srgb, var(--color-auth-plum) 55%, var(--color-auth-blush)) 100%
+      );
+    background-size: 180% 180%;
+    animation: var(--animate-auth-gradient);
+  }
+
+  .auth-beauty__orb {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(40px);
+    animation: var(--animate-auth-orb);
+  }
+
+  .auth-beauty__card {
+    animation: var(--animate-auth-float);
+  }
+
+  .auth-beauty__panel {
+    animation: var(--animate-auth-panel);
+  }
+
+  .auth-beauty__input {
+    @apply w-full min-h-12 rounded-btn border bg-surface px-4 text-base text-ink placeholder:text-muted sm:text-sm;
+    border-color: var(--color-line);
+    transition:
+      border-color 0.2s var(--ease-standard),
+      box-shadow 0.2s var(--ease-standard),
+      background-color 0.2s var(--ease-standard);
+  }
+
+  .auth-beauty__input:focus {
+    border-color: var(--color-auth-berry);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-auth-blush) 65%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footer-beauty,
+    .footer-beauty__glow,
+    .footer-beauty__shimmer,
+    .footer-beauty__particle,
+    .auth-beauty__stage,
+    .auth-beauty__orb,
+    .auth-beauty__card,
+    .auth-beauty__panel {
+      animation: none !important;
+    }
+
+    .footer-beauty {
+      background-size: 100% 100%;
+    }
+
+    .auth-beauty__stage {
+      background-size: 100% 100%;
+    }
+
+    .footer-beauty__link:hover,
+    .footer-beauty__logo:hover {
+      transform: none;
+    }
+  }
+}
+
+/* Owner portal packing slip — hide chrome when printing an order. */
+@media print {
+  body {
+    background: white !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
   }
 }

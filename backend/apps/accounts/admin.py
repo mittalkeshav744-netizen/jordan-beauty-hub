@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .forms import AdminUserChangeForm, AdminUserCreationForm
-from .models import Address, User
+from .models import Address, User, UserBeautyProfile
 
 
 class AddressInline(admin.StackedInline):
@@ -10,18 +10,34 @@ class AddressInline(admin.StackedInline):
     extra = 0
 
 
+class BeautyProfileInline(admin.StackedInline):
+    model = UserBeautyProfile
+    extra = 0
+    max_num = 1
+    fk_name = "user"
+    autocomplete_fields = ["skin_type", "primary_concern"]
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     form = AdminUserChangeForm
     add_form = AdminUserCreationForm
     ordering = ["-date_joined"]
-    list_display = ["email", "first_name", "last_name", "phone", "is_staff", "date_joined"]
-    list_filter = ["is_staff", "is_superuser", "is_active"]
+    list_display = [
+        "email",
+        "first_name",
+        "last_name",
+        "phone",
+        "email_verified",
+        "is_staff",
+        "date_joined",
+    ]
+    list_filter = ["email_verified", "is_staff", "is_superuser", "is_active"]
     search_fields = ["email", "first_name", "last_name", "phone"]
-    inlines = [AddressInline]
+    inlines = [AddressInline, BeautyProfileInline]
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("first_name", "last_name", "phone")}),
+        ("Personal info", {"fields": ("first_name", "last_name", "phone", "email_verified")}),
         (
             "Permissions",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
@@ -33,7 +49,16 @@ class UserAdmin(BaseUserAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("email", "first_name", "last_name", "password1", "password2"),
+                "fields": (
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "phone",
+                    "is_staff",
+                    "is_active",
+                    "password1",
+                    "password2",
+                ),
             },
         ),
     )
@@ -44,3 +69,11 @@ class AddressAdmin(admin.ModelAdmin):
     list_display = ["full_name", "user", "city", "state", "postal_code", "is_default"]
     search_fields = ["full_name", "user__email", "city", "postal_code"]
     list_select_related = ["user"]
+
+
+@admin.register(UserBeautyProfile)
+class UserBeautyProfileAdmin(admin.ModelAdmin):
+    list_display = ["user", "skin_type", "primary_concern", "budget_preference", "quiz_completed_at"]
+    list_select_related = ["user", "skin_type", "primary_concern"]
+    search_fields = ["user__email"]
+    autocomplete_fields = ["user", "skin_type", "primary_concern"]

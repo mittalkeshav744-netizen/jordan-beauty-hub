@@ -11,7 +11,8 @@ import MobileNav from './MobileNav'
 import { HEART_PATH } from '../products/WishlistButton'
 import SearchBar from './SearchBar'
 
-const ICON_BUTTON_CLASSES = 'relative h-11 w-11 shrink-0 items-center justify-center rounded-control hover:bg-subtle'
+const ICON_BUTTON_CLASSES =
+  'relative h-10 w-10 shrink-0 items-center justify-center rounded-btn transition-colors hover:bg-subtle sm:h-11 sm:w-11'
 
 function Icon({ children, strokeWidth = 1.8 }) {
   return (
@@ -51,7 +52,7 @@ export default function Header() {
     <>
       <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur">
         <AnnouncementBar />
-        <div className="page-container flex h-16 items-center gap-1 sm:gap-4">
+        <div className="page-container flex h-14 items-center gap-1 sm:h-16 sm:gap-4">
           <button
             type="button"
             className={`${ICON_BUTTON_CLASSES} -ml-2 flex lg:hidden`}
@@ -65,11 +66,23 @@ export default function Header() {
             </Icon>
           </button>
 
-          <Link to="/" className="min-w-0 rounded-control md:shrink-0">
-            <Logo />
-          </Link>
+          <div
+            className="min-w-0 rounded-control md:shrink-0"
+            data-manage-edit="/manage/storefront?focus=hero"
+            data-manage-label="Logo / brand home"
+          >
+            <Link to="/" className="block">
+              <Logo />
+            </Link>
+          </div>
 
-          <SearchBar className="mx-auto hidden w-full max-w-md min-w-0 md:block" />
+          <div
+            className="mx-auto hidden w-full max-w-md min-w-0 md:block"
+            data-manage-edit="/manage/products?focus=products"
+            data-manage-label="Header search & shop entry"
+          >
+            <SearchBar className="w-full" />
+          </div>
 
           <div className="-mr-2 ml-auto flex shrink-0 items-center md:ml-0">
             {isAuthenticated && (

@@ -10,15 +10,30 @@ from rest_framework.views import APIView
 from config.exceptions import error_response
 
 from .models import Address
+from .otp import OTPError
 from .serializers import (
     AddressSerializer,
+    BeautyProfileWriteSerializer,
+    EmailOTPResendSerializer,
+    EmailOTPVerifySerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
+    PasswordResetOTPConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
     UserSerializer,
 )
-from .services import PasswordResetError, reset_password, send_password_reset_email
+from .services import (
+    BeautyProfileError,
+    EmailVerifyError,
+    PasswordResetError,
+    reset_password,
+    reset_password_with_otp,
+    save_beauty_profile,
+    send_email_verification_otp,
+    send_password_reset_email,
+    verify_user_email,
+)
 
 
 @method_decorator(ensure_csrf_cookie, name="get")
@@ -41,7 +56,17 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        email_sent = False
+        try:
+            send_email_verification_otp(user)
+            email_sent = True
+        except OTPError:
+            # Account still works; shopper can resend the code from the verify page.
+            pass
+        payload = UserSerializer(user).data
+        payload["email_verification_required"] = not user.email_verified
+        payload["email_verification_sent"] = email_sent
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 @method_decorator(csrf_protect, name="post")
@@ -66,7 +91,12 @@ class PasswordResetRequestView(APIView):
         serializer.is_valid(raise_exception=True)
         send_password_reset_email(serializer.validated_data["email"])
         return Response(
-            {"detail": "If an account uses this email, we have sent a link to reset the password."}
+            {
+                "detail": (
+                    "If an account uses this email, we have sent a 6-digit code "
+                    "(and a backup link) to reset the password."
+                )
+            }
         )
 
 
@@ -86,6 +116,75 @@ class PasswordResetConfirmView(APIView):
         except DjangoValidationError as error:
             return error_response(error.messages[0], errors={"new_password": error.messages})
         return Response({"detail": "Your password has been changed. Please sign in."})
+
+
+@method_decorator(csrf_protect, name="post")
+class PasswordResetOTPConfirmView(APIView):
+    """Complete a password reset with the emailed 6-digit code."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordResetOTPConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            reset_password_with_otp(data["email"], data["otp"], data["new_password"])
+        except PasswordResetError as error:
+            return error_response(str(error))
+        except DjangoValidationError as error:
+            return error_response(error.messages[0], errors={"new_password": error.messages})
+        return Response({"detail": "Your password has been changed. Please sign in."})
+
+
+@method_decorator(csrf_protect, name="post")
+class EmailVerifyView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = EmailOTPVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            user = verify_user_email(data["email"], data["otp"])
+        except EmailVerifyError as error:
+            return error_response(str(error))
+        if request.user.is_authenticated and request.user.pk == user.pk:
+            return Response(UserSerializer(user).data)
+        return Response(
+            {
+                "detail": "Email verified. You can continue shopping.",
+                "email_verified": True,
+                "email": user.email,
+            }
+        )
+
+
+@method_decorator(csrf_protect, name="post")
+class EmailVerifyResendView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = EmailOTPResendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"].strip().lower()
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        # Same reply whether or not the account exists / already verified.
+        detail = {
+            "detail": "If that account needs verification, we have sent a new code."
+        }
+        if user is None or user.email_verified:
+            return Response(detail)
+        try:
+            send_email_verification_otp(user)
+        except OTPError as error:
+            return error_response(str(error))
+        return Response(detail)
 
 
 class LogoutView(APIView):
@@ -113,6 +212,47 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+@method_decorator(csrf_protect, name="put")
+@method_decorator(csrf_protect, name="patch")
+class BeautyProfileView(APIView):
+    """Save skin-quiz answers for the signed-in shopper."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def put(self, request):
+        return self._save(request)
+
+    def patch(self, request):
+        return self._save(request)
+
+    def _save(self, request):
+        from django.contrib.auth import get_user_model
+
+        serializer = BeautyProfileWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            save_beauty_profile(
+                request.user,
+                skin_type_slug=data.get("skin_type") or None,
+                concern_slug=data.get("primary_concern") or None,
+                budget_preference=data.get("budget_preference"),
+                raw_quiz_answers=data.get("raw_quiz_answers"),
+            )
+        except BeautyProfileError as error:
+            return error_response(str(error), status_code=status.HTTP_400_BAD_REQUEST)
+        # Reload so the cached reverse OneToOne is not stale after update_or_create.
+        user = get_user_model().objects.select_related(
+            "beauty_profile",
+            "beauty_profile__skin_type",
+            "beauty_profile__primary_concern",
+        ).get(pk=request.user.pk)
+        return Response(UserSerializer(user).data)
 
 
 class AddressViewSet(viewsets.ModelViewSet):

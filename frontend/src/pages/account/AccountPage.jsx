@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 import Button from '../../components/common/Button'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
@@ -36,6 +37,15 @@ function ProfileSection() {
       <h2 id="profile-heading" className="text-sm font-semibold tracking-widest uppercase">
         Profile
       </h2>
+      {!user.email_verified && (
+        <p className="rounded-card border border-line bg-subtle px-4 py-3 text-sm text-ink-soft">
+          Confirm <span className="font-medium text-ink">{user.email}</span> with the code we
+          emailed you.{' '}
+          <Link to="/verify-email" state={{ email: user.email }} className="font-semibold text-accent hover:underline">
+            Verify email
+          </Link>
+        </p>
+      )}
       <form onSubmit={form.handleSubmit(submit)} noValidate className="grid gap-4 sm:grid-cols-3">
         {form.formError && (
           <div className="sm:col-span-3">
@@ -77,11 +87,30 @@ function AddressCard({ address, onEdit, onDelete }) {
         <p className="text-muted">Phone: {address.phone}</p>
       </div>
       <div className="mt-auto flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => onEdit(address)}>
-          Edit
+        <Button
+          size="sm"
+          variant="outline"
+          aria-label={`Edit ${address.label || 'address'}`}
+          title="Edit"
+          onClick={() => onEdit(address)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => onDelete(address)}>
-          Delete
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Delete ${address.label || 'address'}`}
+          title="Delete"
+          onClick={() => onDelete(address)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M19 6l-1 14H6L5 6" />
+          </svg>
         </Button>
       </div>
     </li>

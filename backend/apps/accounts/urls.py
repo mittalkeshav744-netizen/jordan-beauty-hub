@@ -17,7 +17,15 @@ urlpatterns = [
         views.PasswordResetConfirmView.as_view(),
         name="password-reset-confirm",
     ),
+    path(
+        "password-reset/otp/",
+        views.PasswordResetOTPConfirmView.as_view(),
+        name="password-reset-otp",
+    ),
+    path("email/verify/", views.EmailVerifyView.as_view(), name="email-verify"),
+    path("email/resend/", views.EmailVerifyResendView.as_view(), name="email-resend"),
     path("session/", views.SessionView.as_view(), name="session"),
     path("me/", views.CurrentUserView.as_view(), name="current-user"),
+    path("beauty-profile/", views.BeautyProfileView.as_view(), name="beauty-profile"),
     *router.urls,
 ]

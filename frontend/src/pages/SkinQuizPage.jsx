@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 
 import Breadcrumbs from '../components/common/Breadcrumbs'
@@ -8,7 +9,9 @@ import StepProductCard from '../components/products/StepProductCard'
 import { ANY_BUDGET, NO_CONCERN, QUIZ_BUDGETS } from '../constants/skinQuiz'
 import { useAddManyToCart } from '../hooks/useAddManyToCart'
 import { useApi } from '../hooks/useApi'
+import { useAuth } from '../hooks/useAuth'
 import { catalogService } from '../services/catalogService'
+import { beautyProfileApiPayload, saveLocalBeautyProfile } from '../utils/beautyProfile'
 import { formatPrice } from '../utils/format'
 
 /** Answers live in the URL (?skin=oily&concern=acne&budget=499) so results can be shared and the back button works. */
@@ -16,15 +19,15 @@ const ANSWER_KEYS = ['skin', 'concern', 'budget']
 
 function OptionGrid({ options, onChoose }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
       {options.map((option, index) => (
         <li key={option.value} className="animate-fade-up" style={{ animationDelay: `${index * 60}ms` }}>
           <button
             type="button"
             onClick={() => onChoose(option.value)}
-            className="group flex h-full w-full flex-col items-start gap-1 rounded-card border-2 border-line bg-surface p-4 text-left transition-all duration-200 ease-standard hover:-translate-y-0.5 hover:border-accent hover:shadow-raised focus-visible:border-accent"
+            className="group flex h-full w-full flex-col items-start gap-1 rounded-card border-2 border-line bg-surface p-3.5 text-left transition-all duration-200 ease-standard hover:-translate-y-0.5 hover:border-accent hover:shadow-raised focus-visible:border-accent sm:p-4"
           >
-            <span className="font-display text-lg font-bold group-hover:text-accent">{option.name}</span>
+            <span className="font-display text-base font-bold group-hover:text-accent sm:text-lg">{option.name}</span>
             {option.description && <span className="text-sm text-muted">{option.description}</span>}
           </button>
         </li>
@@ -52,7 +55,7 @@ function Question({ number, title, hint, request, toOptions, onChoose }) {
             style={{ width: `${(number / 3) * 100}%` }}
           />
         </div>
-        <h2 id="quiz-question" className="animate-fade-up font-display text-2xl font-bold sm:text-3xl">
+        <h2 id="quiz-question" className="animate-fade-up font-display text-xl font-bold sm:text-3xl">
           {title}
         </h2>
         {hint && <p className="text-sm text-muted">{hint}</p>}
@@ -91,22 +94,37 @@ function QuizResult({ answers, skinTypes, concerns, onRestart }) {
   if (answers.budget !== ANY_BUDGET) params.max_price = answers.budget
   const { data, isLoading, error, reload } = useApi(() => catalogService.getRoutine(params), [params])
   const { addMany, isAdding } = useAddManyToCart()
+  const { isAuthenticated, saveBeautyProfile } = useAuth()
+  const savedKey = useRef('')
+
+  useEffect(() => {
+    const key = `${answers.skin}|${answers.concern}|${answers.budget}`
+    if (!answers.skin || savedKey.current === key) return
+    savedKey.current = key
+    // Save to the account only when signed in — home personalization uses the account profile.
+    // Guests still see this quiz result on this page; we don't personalize the whole shop for them.
+    if (isAuthenticated) {
+      saveLocalBeautyProfile(answers)
+      saveBeautyProfile(beautyProfileApiPayload(answers)).catch(() => {
+        // Shelf refreshes when the session user updates.
+      })
+    }
+  }, [answers, isAuthenticated, saveBeautyProfile])
 
   const skinName = skinTypes?.find((item) => item.slug === answers.skin)?.name
   const concernName = concerns?.find((item) => item.slug === answers.concern)?.name
 
   return (
     <section aria-labelledby="result-heading" className="animate-fade-up space-y-6">
-      <div className="rounded-card bg-linear-to-br from-accent to-tile-orchid-deep p-6 text-white shadow-raised sm:p-8">
+      <div className="rounded-card bg-linear-to-br from-accent to-tile-orchid-deep p-4 text-white shadow-raised sm:p-8">
         <p className="text-xs font-semibold tracking-[0.3em] text-white/80 uppercase">Your result</p>
         <h2 id="result-heading" className="mt-2 font-display text-2xl font-bold sm:text-3xl">
-          Your personal routine
+          Your matched routine
         </h2>
         <p className="mt-2 text-sm text-white/85">
-          {[skinName && `${skinName} skin`, concernName && `focus on ${concernName.toLowerCase()}`]
+          {[skinName && `${skinName} skin`, concernName && `for ${concernName.toLowerCase()}`]
             .filter(Boolean)
-            .join(', ') || 'Picked for you'}
-          .
+            .join(' · ') || 'Chosen for your answers'}
         </p>
       </div>
 
@@ -181,32 +199,34 @@ export default function SkinQuizPage() {
 
   const questions = [
     {
-      title: 'What is your skin type?',
-      hint: 'Not sure? Oily skin shines by noon; dry skin feels tight after washing.',
+      title: 'How does your skin usually feel?',
+      hint: 'Oily skin looks shiny by midday. Dry skin feels tight after you wash.',
       request: skinTypes,
       toOptions: (items) => items.map((item) => ({ value: item.slug, name: item.name, description: item.description })),
     },
     {
-      title: 'What would you most like to fix?',
+      title: 'What do you want to improve most?',
       request: concerns,
       toOptions: (items) => [
         ...items.map((item) => ({ value: item.slug, name: item.name, description: item.description })),
-        { value: NO_CONCERN, name: 'Nothing in particular', description: 'Just keep my skin healthy' },
+        { value: NO_CONCERN, name: 'Nothing specific', description: 'I just want healthy skin' },
       ],
     },
     {
-      title: 'What is your budget per product?',
+      title: 'How much do you want to spend per product?',
       request: { data: QUIZ_BUDGETS, isLoading: false, error: null },
       toOptions: (items) => items,
     },
   ]
 
   return (
-    <div className="page-container max-w-4xl pb-12">
+    <div className="page-container max-w-4xl pb-10 sm:pb-12">
       <Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Skin quiz' }]} />
-      <div className="py-6 text-center sm:py-8">
+      <div className="py-4 text-center sm:py-8">
         <h1 className="section-title">Skin quiz</h1>
-        <p className="mt-1 text-sm text-muted">Three questions. One routine made for you.</p>
+        <p className="mt-1 text-sm text-muted">
+          Answer three questions. Get a morning and night routine matched to you.
+        </p>
       </div>
 
       {currentStep < ANSWER_KEYS.length ? (

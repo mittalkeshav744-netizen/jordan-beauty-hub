@@ -14,8 +14,10 @@ export function renderWithProviders(ui, { route = '/', auth = {}, cart = {}, wis
     isCheckingSession: false,
     login: vi.fn(),
     register: vi.fn(),
+    applyUser: vi.fn(),
     logout: vi.fn(),
     updateProfile: vi.fn(),
+    saveBeautyProfile: vi.fn().mockResolvedValue(null),
     ...auth,
   }
   const cartValue = {

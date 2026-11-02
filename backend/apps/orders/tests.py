@@ -38,7 +38,10 @@ class OrderCreationTests(CheckoutTestCase):
         self.assertEqual(response.data["status"], "pending")
         self.assertEqual(response.data["payment_status"], "Pending")
         item = response.data["items"][0]
-        self.assertEqual((item["sku"], item["unit_price"], item["quantity"]), (self.variant.sku, "400.00", 2))
+        self.assertEqual(
+            (item["sku"], item["unit_price"], item["quantity"], item["line_total"]),
+            (self.variant.sku, "400.00", 2, "800.00"),
+        )
 
         self.variant.refresh_from_db()
         self.assertEqual(self.variant.stock_quantity, 3)

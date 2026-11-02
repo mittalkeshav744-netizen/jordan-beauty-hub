@@ -80,6 +80,47 @@ SAMPLE_IMAGES = [
          "https://stocksnap.io/photo/brush-makeup-W55QEDBEXB",
          OPENVERSE_THUMB.format("5745d945-c1ff-4e96-b4ea-cf3c4f2daf46")),
     ]),
+    # Quiz-routine SKUs added after the original seed set — related CC0 product photos.
+    ("creamy-comfort-cleanser", [
+        ("Open jar of soft pink cream cleanser",
+         "https://www.rawpixel.com/image/5919201/image-public-domain-pink-makeup",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9zdGF0aWMvaW1hZ2Uvd2Vic2l0ZS8yMDIyLTA0L2xyL2JzMTAzNy1pbWFnZS1rd3Z4NHRmby5qcGc.jpg"),
+    ]),
+    ("tea-tree-clarifying-toner", [
+        ("Amber skincare bottles with droppers",
+         "https://www.rawpixel.com/image/11515788/bottles-beard-oil-blank-label",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzMjM4LWltYWdlLmpwZw.jpg"),
+    ]),
+    ("daily-glow-serum", [
+        ("Amber dropper bottle of glow serum",
+         "https://www.rawpixel.com/image/11515770/dropper-bottle-blank-retro-label",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzMjMzLWltYWdlLmpwZw.jpg"),
+    ]),
+    ("clarify-care-serum", [
+        ("Clear jar of clarifying face treatment",
+         "https://www.rawpixel.com/image/11524180/open-container-activated-charcoal-facemask",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzODk2LWltYWdlLmpwZw.jpg"),
+    ]),
+    ("spot-fade-serum", [
+        ("Dropper bottle for spot-fade serum",
+         "https://www.rawpixel.com/image/11515770/dropper-bottle-blank-retro-label",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzMjMzLWltYWdlLmpwZw.jpg"),
+    ]),
+    ("soft-day-cream", [
+        ("Open jar of soft day cream",
+         "https://www.rawpixel.com/image/11524180/open-container-activated-charcoal-facemask",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzODk2LWltYWdlLmpwZw.jpg"),
+    ]),
+    ("everyday-spf-30", [
+        ("White tube of everyday sunscreen lotion",
+         "https://www.rawpixel.com/image/5919201/image-public-domain-pink-makeup",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9zdGF0aWMvaW1hZ2Uvd2Vic2l0ZS8yMDIyLTA0L2xyL2JzMTAzNy1pbWFnZS1rd3Z4NHRmby5qcGc.jpg"),
+    ]),
+    ("night-glow-essence", [
+        ("Amber oil bottles for night glow essence",
+         "https://www.rawpixel.com/image/11515788/bottles-beard-oil-blank-label",
+         "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTA0L2JzMjM4LWltYWdlLmpwZw.jpg"),
+    ]),
 ]
 
 MAX_PRODUCT_IMAGES = 3
@@ -149,6 +190,32 @@ AI_IMAGES = [
     ("blending-sponge", [
         ("Two pink teardrop blending sponges", "blending-sponge-2-ai.jpg"),
         ("Damp pink sponge with a dot of foundation", "blending-sponge-3-ai.jpg"),
+    ]),
+    ("creamy-comfort-cleanser", [
+        ("Creamy comfort cleanser tube on a soft cream backdrop", "creamy-comfort-cleanser-1-ai.jpg"),
+    ]),
+    ("tea-tree-clarifying-toner", [
+        ("Tea tree clarifying toner bottle with botanical accents", "tea-tree-clarifying-toner-1-ai.jpg"),
+    ]),
+    ("daily-glow-serum", [
+        ("Daily glow serum dropper bottle with golden liquid", "daily-glow-serum-1-ai.jpg"),
+    ]),
+    ("clarify-care-serum", [
+        ("Clarify care serum dropper bottle with light green liquid", "clarify-care-serum-1-ai.jpg"),
+    ]),
+    ("spot-fade-serum", [
+        ("Spot fade serum dropper bottle on a soft lavender backdrop", "spot-fade-serum-1-ai.jpg"),
+    ]),
+    ("soft-day-cream", [
+        ("Soft day cream jar with creamy moisturiser", "soft-day-cream-1-ai.jpg"),
+        ("Open soft day cream jar with whipped texture", "soft-day-cream-2-ai.jpg"),
+    ]),
+    ("everyday-spf-30", [
+        ("Everyday SPF 30 sunscreen tube on a sunny beige backdrop", "everyday-spf-30-1-ai.jpg"),
+        ("Everyday SPF 30 tube with sun hat and sunglasses", "everyday-spf-30-2-ai.jpg"),
+    ]),
+    ("night-glow-essence", [
+        ("Night glow essence bottle with pearly serum", "night-glow-essence-1-ai.jpg"),
     ]),
 ]
 

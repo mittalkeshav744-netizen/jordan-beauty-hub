@@ -41,6 +41,18 @@ class RoutineQuerySerializer(serializers.Serializer):
     max_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=False)
 
 
+class RecommendationsQuerySerializer(serializers.Serializer):
+    context = serializers.ChoiceField(choices=["home", "cart"], default="home")
+    skin_type = serializers.SlugRelatedField(
+        slug_field="slug", queryset=SkinType.objects.all(), required=False, allow_null=True
+    )
+    concern = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Concern.objects.filter(is_active=True), required=False, allow_null=True
+    )
+    max_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=False)
+    subtotal = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0, required=False)
+
+
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand

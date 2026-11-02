@@ -66,8 +66,9 @@ export default function Drawer({ isOpen, onClose, title, side = 'left', id, clas
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-control text-2xl leading-none hover:bg-subtle"
+            className="flex h-11 w-11 items-center justify-center rounded-btn text-xl leading-none text-danger transition-colors hover:bg-danger-soft"
             aria-label={`Close ${title.toLowerCase()}`}
+            title="Close"
           >
             ×
           </button>

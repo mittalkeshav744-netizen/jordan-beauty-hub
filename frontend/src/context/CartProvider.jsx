@@ -1,8 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../hooks/useAuth'
 import { cartService } from '../services/cartService'
+import { multiplyMoney, sumMoney } from '../utils/format'
 import { CartContext } from './contexts'
+
+function cartWithQuantity(cart, itemId, quantity) {
+  const items = cart.items.map((item) => {
+    if (item.id !== itemId) return item
+    return { ...item, quantity, line_total: multiplyMoney(item.variant.price, quantity) }
+  })
+  return {
+    ...cart,
+    items,
+    item_count: items.reduce((total, item) => total + item.quantity, 0),
+    subtotal: sumMoney(items.map((item) => item.line_total)),
+  }
+}
 
 const EMPTY_CART = { items: [], item_count: 0, subtotal: '0.00' }
 

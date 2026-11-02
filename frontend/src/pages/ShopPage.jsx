@@ -100,7 +100,7 @@ export default function ShopPage() {
           <CategoryBanner {...getBanner(filters, categoryList, concernList)} />
         ))}
 
-      <div className="py-6 text-center sm:py-8">
+      <div className="py-4 text-center sm:py-8">
         <h1 className="section-title">{title}</h1>
         {products.data && (
           <p className="mt-1 text-sm text-muted">
@@ -112,7 +112,7 @@ export default function ShopPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <aside
           aria-label="Product filters"
-          className="hidden lg:sticky lg:top-40 lg:block lg:max-h-[calc(100dvh-11rem)] lg:self-start lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:thin]"
+          className="hidden lg:sticky lg:top-40 lg:block lg:max-h-[calc(100dvh-11rem)] lg:self-start lg:overflow-y-auto lg:pr-2"
         >
           <FilterPanel {...filterPanelProps} />
         </aside>

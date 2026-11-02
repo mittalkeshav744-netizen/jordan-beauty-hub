@@ -41,6 +41,30 @@ describe('QuantitySelector', () => {
     rerender(<QuantitySelector value={2} max={2} onChange={onChange} />)
     expect(screen.getByRole('button', { name: /increase/i })).toBeDisabled()
   })
+
+  it('lets the shopper type a quantity instead of tapping plus', async () => {
+    const onChange = vi.fn()
+    render(<QuantitySelector value={1} max={10} onChange={onChange} />)
+    const field = screen.getByRole('textbox', { name: /quantity/i })
+    await userEvent.clear(field)
+    await userEvent.type(field, '8')
+    field.blur()
+    expect(onChange).toHaveBeenCalledWith(8)
+  })
+
+  it('sets the quantity to the stock limit when the typed amount is higher', async () => {
+    const onChange = vi.fn()
+    const onExceed = vi.fn()
+    render(<QuantitySelector value={1} max={12} onChange={onChange} onExceed={onExceed} />)
+    const field = screen.getByRole('textbox', { name: /quantity/i })
+    const user = userEvent.setup()
+    await user.clear(field)
+    await user.type(field, '1000')
+    await user.tab()
+    expect(onChange).toHaveBeenCalledWith(12)
+    expect(onExceed).toHaveBeenCalledWith(1000, 12)
+    expect(field).toHaveValue('12')
+  })
 })
 
 describe('ErrorMessage', () => {

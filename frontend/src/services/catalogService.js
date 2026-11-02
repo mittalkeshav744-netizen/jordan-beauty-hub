@@ -8,6 +8,15 @@ export const catalogService = {
   /** Skin quiz result. params: { skin_type, concern, max_price } (all optional). */
   getRoutine: (params) =>
     apiClient.get('/catalog/routine/', { params }).then((response) => response.data),
+  /**
+   * Ranked product cards for home / cart shelves.
+   * params: { context: 'home'|'cart', skin_type?, concern?, max_price?, subtotal? }
+   */
+  getRecommendations: (params) =>
+    apiClient.get('/catalog/recommendations/', { params }).then((response) => response.data),
+  /** Owner-curated home shelf (empty array when unset). */
+  getHomepagePicks: () =>
+    apiClient.get('/catalog/homepage-picks/').then((response) => response.data),
   getProducts: (params) =>
     apiClient.get('/catalog/products/', { params }).then((response) => response.data),
   /** { min, max } card prices for the given filters (price filter ignored). */

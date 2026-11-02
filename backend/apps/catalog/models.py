@@ -120,7 +120,13 @@ class Product(TimeStampedModel):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="products/")
+    image = models.ImageField(
+        upload_to="products/",
+        help_text=(
+            "Saved as a 1200×1200 JPEG. A wide or tall photo is cropped from the centre, "
+            "so keep the product in the middle on a light background."
+        ),
+    )
     alt_text = models.CharField(max_length=200, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
 
@@ -129,6 +135,29 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product}"
+
+    def save(self, *args, **kwargs):
+        self._store_standard_image()
+        super().save(*args, **kwargs)
+
+    def _store_standard_image(self):
+        """Turn a newly uploaded photo into the shop's 1200×1200 JPEG."""
+        field_file = self.image
+        if not field_file or field_file._committed:
+            return
+        from pathlib import Path
+
+        from django.core.exceptions import ValidationError
+        from django.core.files.base import ContentFile
+
+        from .services import normalize_product_image
+
+        try:
+            content = normalize_product_image(field_file)
+        except (OSError, ValueError) as error:
+            raise ValidationError("Upload a JPEG, PNG, or WebP photo.") from error
+        stem = Path(field_file.name).stem or "product"
+        field_file.save(f"{stem}.jpg", ContentFile(content), save=False)
 
 
 hex_color_validator = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Enter a colour like #C46A6A.")
@@ -226,3 +255,42 @@ class Review(TimeStampedModel):
 
     def __str__(self):
         return f"{self.rating}★ {self.product} by {self.user}"
+
+
+class HomepagePick(models.Model):
+    """Owner-chosen products for the home page shelf (order = sort_order)."""
+
+    product = models.OneToOneField(
+        Product, on_delete=models.CASCADE, related_name="homepage_pick"
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"Home pick: {self.product}"
+
+
+class ProductFitSignal(models.Model):
+    """
+    Lightweight learning for recommendations.
+
+    positive_count — times the product was shown while active and in stock.
+    negative_count — times it was requested/picked but missing, inactive, or out of stock.
+    Ranking uses (positive - negative) so unavailable catalogue gaps train the algorithm down.
+    """
+
+    product = models.OneToOneField(
+        Product, on_delete=models.CASCADE, related_name="fit_signal"
+    )
+    positive_count = models.PositiveIntegerField(default=0)
+    negative_count = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "product fit signal"
+
+    def __str__(self):
+        return f"Fit {self.product_id}: +{self.positive_count}/-{self.negative_count}"

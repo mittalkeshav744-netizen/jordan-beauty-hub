@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export default function QuantitySelector({
   value,
   onChange,
@@ -5,9 +7,34 @@ export default function QuantitySelector({
   max = 10,
   disabled = false,
   label = 'Quantity',
+  onExceed,
 }) {
+  const [draft, setDraft] = useState(null)
+  const [trackedValue, setTrackedValue] = useState(value)
+  if (value !== trackedValue) {
+    setTrackedValue(value)
+    setDraft(null)
+  }
+  const shown = draft ?? String(value)
   const buttonClasses =
     'flex h-full w-11 items-center justify-center text-lg hover:bg-subtle disabled:opacity-40 disabled:hover:bg-transparent'
+
+  const commit = () => {
+    const parsed = Number.parseInt(shown, 10)
+    if (!Number.isFinite(parsed)) {
+      setDraft(null)
+      return
+    }
+    if (parsed > max) {
+      setDraft(String(max))
+      if (max !== value) onChange(max)
+      onExceed?.(parsed, max)
+      return
+    }
+    setDraft(null)
+    const next = Math.max(min, parsed)
+    if (next !== value) onChange(next)
+  }
 
   return (
     <div
@@ -24,9 +51,26 @@ export default function QuantitySelector({
       >
         −
       </button>
-      <output aria-live="polite" className="flex w-10 items-center justify-center text-sm font-medium">
-        {value}
-      </output>
+      <input
+        aria-label={label}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={shown}
+        disabled={disabled}
+        onFocus={(event) => {
+          setDraft(String(value))
+          event.target.select()
+        }}
+        onChange={(event) => setDraft(event.target.value.replace(/\D/g, ''))}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            event.currentTarget.blur()
+          }
+        }}
+        className="w-14 bg-transparent text-center text-sm font-medium text-ink outline-none disabled:opacity-40"
+      />
       <button
         type="button"
         className={buttonClasses}

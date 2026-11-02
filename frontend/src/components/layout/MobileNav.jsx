@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router'
 
-import { MAIN_NAV_LINKS } from '../../constants/navigation'
 import { useAuth } from '../../hooks/useAuth'
+import { useNavCategories } from '../../hooks/useNavCategories'
 import { isNavLinkActive } from '../../utils/navigation'
 import Drawer from '../common/Drawer'
 import NewBadge from '../common/NewBadge'
@@ -10,15 +10,17 @@ import SearchBar from './SearchBar'
 export default function MobileNav({ isOpen, onClose }) {
   const location = useLocation()
   const { isAuthenticated } = useAuth()
+  const { links } = useNavCategories()
 
-  const linkClasses = 'flex min-h-12 items-center border-b border-line text-sm font-semibold tracking-wide uppercase'
+  const linkClasses =
+    'flex min-h-11 items-center border-b border-line text-sm font-semibold tracking-wide uppercase'
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} title="Menu" id="mobile-navigation" className="lg:hidden">
-      <nav aria-label="Mobile" className="flex flex-col gap-4">
+      <nav aria-label="Mobile" className="flex flex-col gap-3">
         <SearchBar id="mobile-site-search" onSearch={onClose} />
         <ul>
-          {MAIN_NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <li key={link.to}>
               <Link
                 to={link.to}

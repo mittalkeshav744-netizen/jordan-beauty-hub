@@ -15,7 +15,18 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+# override=True so editing backend/.env (e.g. Gemini model) takes effect after reload
+load_dotenv(BASE_DIR / ".env", override=True)
+
+# Windows / some Python installs lack a usable system CA store; SMTP TLS then fails
+# with CERTIFICATE_VERIFY_FAILED. Point OpenSSL at certifi's bundle when available.
+try:
+    import certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+except ImportError:
+    pass
 
 
 def env(name, default=None, required=False):
@@ -45,7 +56,8 @@ DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # Custom AdminConfig: /admin/ is superuser (developer) only — see config.admin
+    "config.apps.DeveloperAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -63,6 +75,8 @@ INSTALLED_APPS = [
     "apps.wishlist",
     "apps.store",
     "apps.looks",
+    "apps.courses",
+    "apps.portal",
 ]
 
 MIDDLEWARE = [
@@ -180,7 +194,8 @@ REST_FRAMEWORK = {
 
 # Google Gemini — beauty assistant chat (`/api/store/chat/`). Leave empty to disable the widget.
 GOOGLE_GEMINI_API_KEY = env("GOOGLE_GEMINI_API_KEY", "")
-GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
+# Prefer a stable Flash Lite; gemini.py also falls back if this model is busy/retired.
+GEMINI_MODEL = env("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 # ---------------------------------------------------------------------------
 # CORS / CSRF / cookies
@@ -204,6 +219,9 @@ SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 # The SPA reads the CSRF cookie and sends it back in the X-CSRFToken header.
 CSRF_COOKIE_HTTPONLY = False
+# SAMEORIGIN (not DENY) so Manage → Website content can iframe the shop homepage.
+# Cross-origin embedding stays blocked.
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
@@ -222,7 +240,8 @@ STORE_NAME = "Jordan Beauty Hub"
 STORE_CURRENCY = "INR"
 SHIPPING_FLAT_FEE = Decimal(env("SHIPPING_FLAT_FEE", "0.00"))
 FREE_SHIPPING_THRESHOLD = Decimal(env("FREE_SHIPPING_THRESHOLD", "0.00"))
-MAX_CART_ITEM_QUANTITY = int(env("MAX_CART_ITEM_QUANTITY", "10"))
+# Upper safety cap. The shopper-facing limit is the variant's stock.
+MAX_CART_ITEM_QUANTITY = int(env("MAX_CART_ITEM_QUANTITY", "999"))
 # Digits only, with country code (e.g. 91 followed by the 10-digit number). Empty hides the button.
 STORE_WHATSAPP_NUMBER = "".join(ch for ch in env("STORE_WHATSAPP_NUMBER", "") if ch.isdigit())
 # Public address of the storefront; used in links inside emails.
@@ -230,10 +249,11 @@ STORE_WHATSAPP_NUMBER = "".join(ch for ch in env("STORE_WHATSAPP_NUMBER", "") if
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # ---------------------------------------------------------------------------
-# Email (password reset)
+# Email (OTP verify, password reset, order confirmation)
 # ---------------------------------------------------------------------------
-# The console backend prints emails in the Django terminal. For real delivery set
-# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend and the SMTP values.
+# The console backend prints emails (including 6-digit OTPs) in the Django terminal.
+# For real delivery set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# and the SMTP values in backend/.env.
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST", "localhost")
@@ -241,6 +261,8 @@ EMAIL_PORT = int(env("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "30"))
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 
 # ---------------------------------------------------------------------------

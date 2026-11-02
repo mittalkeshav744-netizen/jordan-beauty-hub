@@ -78,19 +78,24 @@ environment-specific value comes from environment variables.
 - Duplicate-submit protection (idempotency key) — a double click creates one order
 - Order history, order detail with status timeline, customer cancellation (before shipping)
 
-**Back office (Django Admin at `/admin/`)**
-- Products with inline variants (SKU, price, sale price, stock, shade colour) and images
-- Every stock change is logged as a stock movement (restock, order, cancellation, manual)
-- Orders: status changes through validated transitions; cancelling restores stock and
-  coupon usage; bulk "mark as …" actions; date drill-down
-- Coupons (percentage / fixed, minimum order, cap, validity dates, total and per-user limits)
-- Payments (separate from fulfilment status), reviews moderation, customers and addresses
+**Owner portal (React at `/manage/`, staff) and Django Admin (`/admin/`, developer only)**
+- Day-to-day ops live in the owner portal: dashboard KPIs, orders (status transitions),
+  product copy/flags + stock adjusts, review moderation, coupons, customers, looks publish,
+  newsletter list, and a settings overview
+- **Packaging documents** on order detail (and bulk-select on the orders list): packing slips
+  (no prices, packed checkboxes) and thank-you inserts, with preview, print (A4 / A5), and
+  PDF download via jsPDF — client-side only; nothing is stored on the server
+- Django Admin is restricted to **developer superusers** (`is_superuser=True`, from
+  `createsuperuser`) for deep catalogue work (images, brands, categories, look media,
+  users/permissions). Store staff (`is_staff` only) use `/manage` and cannot open `/admin/`
+- Open the portal only via `/manage` (not linked from the shop). Sign in with a staff
+  account. Developers also see a Django Admin link inside the portal header
 
 ## 3. Technology stack
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19 (JSX), Vite 8, React Router 8, Tailwind CSS 4, Axios |
+| Frontend | React 19 (JSX), Vite 8, React Router 8, Tailwind CSS 4, Axios, jsPDF (+ autotable) for packaging PDFs |
 | Frontend tests | Vitest 5, Testing Library, jsdom |
 | Linting | oxlint (included with the Vite template) |
 | Backend | Python 3.12+ (developed on 3.14), Django 6.1, Django REST Framework 3.18 |
@@ -261,10 +266,10 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 | `CSRF_TRUSTED_ORIGINS` | Origins allowed to send unsafe requests | `http://localhost:5173` |
 | `SHIPPING_FLAT_FEE` | Shipping charge in ₹ (0 = free) | `49.00` |
 | `FREE_SHIPPING_THRESHOLD` | Order value for free shipping (0 = disabled) | `999.00` |
-| `MAX_CART_ITEM_QUANTITY` | Max units of one item per order | `10` |
+| `MAX_CART_ITEM_QUANTITY` | Safety cap per item. Stock still limits what can be added | `999` |
 | `STORE_WHATSAPP_NUMBER` | WhatsApp number with country code, digits only. Empty hides the WhatsApp links | `91XXXXXXXXXX` |
 | `GOOGLE_GEMINI_API_KEY` | Google AI Studio key for the beauty chat. Empty hides the “Ask us” button | (from aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | Gemini model id | `gemini-flash-latest` |
+| `GEMINI_MODEL` | Gemini model id (server falls back if busy/retired) | `gemini-3.5-flash-lite` |
 | `CHAT_THROTTLE_RATE` | Max chat requests per client | `20/min` |
 | `FRONTEND_URL` | Storefront address used in password-reset email links | `http://localhost:5173` |
 | `EMAIL_BACKEND` | Console backend prints emails in the Django terminal; use the SMTP backend in production | `django.core.mail.backends.console.EmailBackend` |
@@ -323,15 +328,18 @@ The home page uses six AI-generated portrait clips (720×1280, about 1.5 MB each
 - **Look videos:** upload an MP4 or WebM in Django Admin → Looks.
 - Keep videos short and compressed (under about 5 MB) so phones load them quickly.
 
-## 13. Create a Django superuser
+## 13. Create a Django superuser (developer)
 
 ```bash
 python manage.py createsuperuser
 ```
 
-You are asked for email, first name, last name and password. Sign in at
-<http://127.0.0.1:8000/admin/>, or at <http://localhost:5173/admin/> while the frontend
-development server is running (it forwards `/admin` and `/static` to Django).
+You are asked for email, first name, last name and password. That account is the
+**developer ID**: only superusers can open Django Admin at
+<http://127.0.0.1:8000/admin/> (or <http://localhost:5173/admin/> while Vite is running).
+
+For a store owner who should use the React portal only, create a user in Admin and tick
+**Staff status** but leave **Superuser status** unchecked — they use `/manage`, not `/admin/`.
 
 ## 14. Start the frontend development server
 
@@ -379,7 +387,10 @@ automatically). Errors always look like `{"detail": "...", "errors": {"field": [
 | POST | `/api/auth/register/` | — | Create account and sign in |
 | POST | `/api/auth/login/` | — | Sign in (`email`, `password`) |
 | POST | `/api/auth/logout/` | user | Sign out |
-| POST | `/api/auth/password-reset/` | — | Email a reset link `{email}` (same reply whether or not the account exists) |
+| POST | `/api/auth/password-reset/` | — | Email a 6-digit OTP + backup link `{email}` (same reply whether or not the account exists) |
+| POST | `/api/auth/password-reset/otp/` | — | Set a new password with `{email, otp, new_password}` |
+| POST | `/api/auth/email/verify/` | — | Confirm signup email with `{email, otp}` |
+| POST | `/api/auth/email/resend/` | — | Resend signup OTP `{email}` |
 | POST | `/api/auth/password-reset/confirm/` | — | Set a new password `{uid, token, new_password}` |
 | GET | `/api/auth/session/` | — | Signed-in user, or `{"user": null}` |
 | GET / PATCH | `/api/auth/me/` | user | Current user profile |
@@ -405,9 +416,22 @@ automatically). Errors always look like `{"detail": "...", "errors": {"field": [
 | POST | `/api/orders/{number}/cancel/` | user | Cancel a pending/confirmed order |
 | GET | `/api/store/settings/` | — | Public shop settings: shipping fee, free-shipping threshold, WhatsApp number, `chat_enabled` |
 | POST | `/api/store/newsletter/` | — | Newsletter signup `{email}` (subscribers are listed in Django Admin) |
-| POST | `/api/store/chat/` | — | Beauty assistant `{message, history?}`. Needs `GOOGLE_GEMINI_API_KEY`. Returns `{reply}` |
+| POST | `/api/store/chat/` | — | Beauty assistant `{message, history?}`. Needs `GOOGLE_GEMINI_API_KEY`. Returns `{reply, products, …}` |
+| POST | `/api/store/chat/stream/` | — | Same payload; SSE events `status` / `token` / `done` / `error` |
 | GET | `/api/looks/` | — | Active looks (cards) |
 | GET | `/api/looks/{slug}/` | — | One look with its steps, `bag_variant_ids` and `total_price` |
+| GET | `/api/portal/dashboard/` | staff | Owner portal KPI snapshot |
+| GET | `/api/portal/settings/` | staff | Store settings overview + Django Admin URL |
+| GET | `/api/portal/orders/` | staff | All orders (`status`, `search`, `page`) |
+| GET | `/api/portal/orders/{number}/` | staff | Order detail + allowed next statuses |
+| POST | `/api/portal/orders/{number}/status/` | staff | `{status, note?}` via `change_order_status` |
+| GET / PATCH | `/api/portal/products/` / `{id}/` | staff | Product list / update copy & flags |
+| POST | `/api/portal/variants/{id}/stock/` | staff | `{quantity_change, reason, reference?}` via `change_stock` |
+| GET / PATCH | `/api/portal/reviews/` / `{id}/` | staff | Moderate reviews (`approved` filter) |
+| GET / POST / PATCH | `/api/portal/coupons/` | staff | List / create / update coupons |
+| GET | `/api/portal/customers/` / `{id}/` | staff | Customers (non-staff) and detail |
+| GET / PATCH | `/api/portal/looks/` / `{id}/` | staff | Publish/unpublish looks |
+| GET | `/api/portal/newsletter/` | staff | Newsletter subscribers |
 
 ## 17. Run tests
 
@@ -512,6 +536,8 @@ force-pushing.
 | Migration conflict after pulling | `python manage.py makemigrations --merge`, review, then `migrate`. Never drop a production database to fix migrations. |
 | `Activate.ps1 cannot be loaded` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
 | Vitest "Timeout waiting for worker" | Already mitigated with `maxWorkers: 1`; close other heavy programs and retry. |
+| “Ask us” chat missing | Set `GOOGLE_GEMINI_API_KEY` in `backend/.env` and restart Django. Empty key hides the widget. |
+| Chat says busy / no reply | Confirm the key is valid at [Google AI Studio](https://aistudio.google.com/apikey). Leave `GEMINI_MODEL=gemini-3.5-flash-lite` (or omit it) so the server can fall back when a model is overloaded. Restart Django after changing `.env`. |
 
 ## 22. Production deployment overview
 
@@ -534,7 +560,12 @@ force-pushing.
    `CSRF_TRUSTED_ORIGINS`.
 5. **SPA routing:** Django already returns `index.html` for unknown paths when it serves
    the build. If the proxy serves `dist/` instead, configure it the same way.
-6. **Operations:** log aggregation, error monitoring (e.g. Sentry), uptime checks, and
+6. **Beauty assistant:** copy `GOOGLE_GEMINI_API_KEY` (and preferably
+   `GEMINI_MODEL=gemini-3.5-flash-lite`) into the production environment. Never commit the
+   key. Policy FAQs (COD, delivery, returns) answer without Gemini; other replies need a
+   working key. If you terminate SSE early at the reverse proxy, raise the proxy read
+   timeout for `/api/store/chat/stream/` (the UI also falls back to non-stream `/chat/`).
+7. **Operations:** log aggregation, error monitoring (e.g. Sentry), uptime checks, and
    regular restore tests of database backups.
 
 ## 23. Current limitations and unfinished features
@@ -545,9 +576,9 @@ force-pushing.
 - **Shipping** is a configurable flat fee + free-shipping threshold. No courier/tracking
   integration yet.
 - **Guest checkout is not supported** — customers sign in to use the bag (by design for the MVP).
-- Password reset emails print in the Django terminal until an SMTP provider is configured
-  (`EMAIL_*` settings). There are no order notification emails yet, and newsletter signups
-  are only collected (no emails are sent from the app).
+- Auth and order emails (signup OTP, password-reset OTP + backup link, order confirmation)
+  print in the Django terminal until an SMTP provider is configured (`EMAIL_*` in
+  `backend/.env`). Newsletter signups are only collected (no campaign emails are sent).
 - Policy pages (`frontend/src/constants/policies.js`) are drafts; the owner should review them
   and add business contact details before going live.
 - No product variants beyond a single option (shade *or* size), or tax invoices.

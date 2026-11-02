@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import Breadcrumbs from '../components/common/Breadcrumbs'
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
+import Modal from '../components/common/Modal'
 import PriceDisplay from '../components/common/PriceDisplay'
 import QuantitySelector from '../components/common/QuantitySelector'
 import RatingDisplay from '../components/common/RatingDisplay'
@@ -22,11 +23,9 @@ import { catalogService } from '../services/catalogService'
 import { formatPrice } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 
-const MAX_QUANTITY_PER_ITEM = 10
-
 function ProductDetailSkeleton() {
   return (
-    <div className="page-container grid gap-8 py-10 md:grid-cols-2 lg:gap-14" aria-busy="true">
+    <div className="page-container grid gap-6 py-6 md:grid-cols-2 md:gap-8 md:py-10 lg:gap-14" aria-busy="true">
       <Skeleton className="aspect-square w-full" />
       <div className="space-y-4">
         <Skeleton className="h-4 w-24" />
@@ -43,7 +42,7 @@ function InfoSection({ title, content }) {
   if (!content) return null
   return (
     <details className="group border-b border-line py-1">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold tracking-widest uppercase">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold tracking-widest uppercase sm:min-h-12">
         {title}
         <span aria-hidden="true" className="text-lg transition-transform group-open:rotate-45">
           +
@@ -56,15 +55,15 @@ function InfoSection({ title, content }) {
 
 function StickyAddToBar({ product, variant, isAdding, onAdd }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-card md:hidden">
-      <div className="flex items-center gap-3">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-3 pt-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-card md:hidden">
+      <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{product.name}</p>
           <p className="truncate text-xs text-muted">
             {variant.name} · <span className="font-semibold text-ink">{formatPrice(variant.price)}</span>
           </p>
         </div>
-        <Button variant="accent" className="shrink-0" isLoading={isAdding} onClick={onAdd}>
+        <Button variant="accent" size="sm" className="shrink-0" isLoading={isAdding} onClick={onAdd}>
           Add to bag
         </Button>
       </div>
@@ -77,6 +76,8 @@ function ProductPurchasePanel({ product }) {
   const defaultVariant = product.variants.find((variant) => variant.is_in_stock) ?? product.variants[0]
   const [selectedId, setSelectedId] = useState(defaultVariant?.id)
   const [quantity, setQuantity] = useState(1)
+  const quantityRef = useRef(1)
+  const [stockNotice, setStockNotice] = useState(false)
   const purchaseRef = useRef(null)
   const showStickyBar = useStickyBar(purchaseRef)
   const selectedVariant = product.variants.find((variant) => variant.id === selectedId) ?? defaultVariant
@@ -85,14 +86,19 @@ function ProductPurchasePanel({ product }) {
     return <ErrorMessage message="This product is currently unavailable." />
   }
 
-  const maxQuantity = Math.max(1, Math.min(MAX_QUANTITY_PER_ITEM, selectedVariant.stock_quantity))
+  const stockLeft = selectedVariant.stock_quantity
+  const maxQuantity = Math.max(stockLeft, 1)
   const isLowStock = selectedVariant.is_in_stock && selectedVariant.stock_quantity <= 5
   const isAdding = pendingVariantId === selectedVariant.id
-  const addSelected = () => addToCart(selectedVariant.id, quantity, product.name)
+  const updateQuantity = (next) => {
+    quantityRef.current = next
+    setQuantity(next)
+  }
+  const addSelected = () => addToCart(selectedVariant.id, quantityRef.current, product.name)
 
   const handleSelectVariant = (variantId) => {
     setSelectedId(variantId)
-    setQuantity(1)
+    updateQuantity(1)
   }
 
   return (
@@ -112,7 +118,12 @@ function ProductPurchasePanel({ product }) {
               <p className="text-sm font-medium text-warning">Hurry — only {selectedVariant.stock_quantity} left!</p>
             )}
             <div className="flex gap-3">
-              <QuantitySelector value={quantity} onChange={setQuantity} max={maxQuantity} />
+              <QuantitySelector
+                value={Math.min(quantity, maxQuantity)}
+                onChange={updateQuantity}
+                max={maxQuantity}
+                onExceed={() => setStockNotice(true)}
+              />
               <Button variant="accent" size="lg" className="flex-1" isLoading={isAdding} onClick={addSelected}>
                 Add to bag
               </Button>
@@ -128,6 +139,18 @@ function ProductPurchasePanel({ product }) {
         <WishlistButton product={product} variant="full" className="flex-1" />
         <ShareButton title={product.name} />
       </div>
+      <Modal
+        isOpen={stockNotice}
+        onClose={() => setStockNotice(false)}
+        title={`Only ${stockLeft} left in stock`}
+        footer={
+          <Button type="button" onClick={() => setStockNotice(false)}>
+            OK
+          </Button>
+        }
+      >
+        Only {stockLeft} left in stock. The quantity has been set to {stockLeft}.
+      </Modal>
       <DeliveryInfo productName={product.name} />
       <p className="text-xs break-all text-muted">SKU: {selectedVariant.sku}</p>
       {showStickyBar && selectedVariant.is_in_stock && (
@@ -160,14 +183,14 @@ export default function ProductDetailPage() {
           { label: product.name },
         ]}
       />
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 sm:gap-8 md:grid-cols-2 lg:gap-14">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 sm:gap-8 md:grid-cols-2 lg:gap-14">
         <div className="min-w-0 lg:sticky lg:top-40 lg:self-start">
           <ProductGallery images={product.images} productName={product.name} />
         </div>
-        <div className="min-w-0 space-y-6">
-          <div className="space-y-2">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
+          <div className="space-y-1.5 sm:space-y-2">
             <p className="text-xs font-semibold tracking-widest text-muted uppercase">{product.brand.name}</p>
-            <h1 className="text-xl font-semibold min-[400px]:text-2xl lg:text-3xl">{product.name}</h1>
+            <h1 className="text-lg font-semibold min-[400px]:text-2xl lg:text-3xl">{product.name}</h1>
             <RatingDisplay rating={product.average_rating} reviewCount={product.review_count} />
             {product.short_description && <p className="text-sm text-ink-soft">{product.short_description}</p>}
           </div>

@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import Address
+from .models import Address, UserBeautyProfile
 
 User = get_user_model()
 
@@ -19,11 +19,55 @@ def validate_phone_number(value):
     return cleaned
 
 
+class BeautyProfileSerializer(serializers.ModelSerializer):
+    """Quiz answers as slugs so the storefront can filter products without extra lookups."""
+
+    skin_type = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    primary_concern = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+
+    class Meta:
+        model = UserBeautyProfile
+        fields = ["skin_type", "primary_concern", "budget_preference", "quiz_completed_at"]
+
+
+class BeautyProfileWriteSerializer(serializers.Serializer):
+    skin_type = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    primary_concern = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    budget_preference = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    raw_quiz_answers = serializers.DictField(required=False)
+
+
 class UserSerializer(serializers.ModelSerializer):
+    beauty_profile = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "phone", "is_staff"]
-        read_only_fields = ["id", "email", "is_staff"]
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "is_staff",
+            "is_superuser",
+            "email_verified",
+            "beauty_profile",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "is_staff",
+            "is_superuser",
+            "email_verified",
+            "beauty_profile",
+        ]
+
+    def get_beauty_profile(self, user):
+        try:
+            profile = user.beauty_profile
+        except UserBeautyProfile.DoesNotExist:
+            return None
+        return BeautyProfileSerializer(profile).data
 
     def validate_phone(self, value):
         return validate_phone_number(value) if value else value
@@ -87,6 +131,21 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField(max_length=64)
     token = serializers.CharField(max_length=128)
     new_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+
+class PasswordResetOTPConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=8)
+    new_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+
+class EmailOTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=8)
+
+
+class EmailOTPResendSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 
 class AddressSerializer(serializers.ModelSerializer):

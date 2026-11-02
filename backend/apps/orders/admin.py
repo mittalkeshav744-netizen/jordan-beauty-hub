@@ -64,10 +64,51 @@ class OrderAdmin(admin.ModelAdmin):
     list_select_related = ["user"]
     inlines = [OrderItemInline, PaymentInline, OrderStatusHistoryInline]
     actions = [make_status_action(status) for status in Order.Status.values]
+    fieldsets = (
+        (None, {"fields": ("number", "user", "status", "customer_note", "created_at", "updated_at")}),
+        (
+            "Delivery address",
+            {
+                "fields": (
+                    "shipping_full_name",
+                    "shipping_phone",
+                    "shipping_line1",
+                    "shipping_line2",
+                    "shipping_city",
+                    "shipping_state",
+                    "shipping_postal_code",
+                    "shipping_country",
+                )
+            },
+        ),
+        (
+            "Money",
+            {
+                "fields": (
+                    "subtotal",
+                    "discount_total",
+                    "shipping_total",
+                    "grand_total",
+                    "currency",
+                    "coupon",
+                    "coupon_code",
+                )
+            },
+        ),
+    )
     readonly_fields = [
-        field.name
-        for field in Order._meta.fields
-        if field.name not in {"id", "status"}
+        "number",
+        "user",
+        "created_at",
+        "updated_at",
+        "subtotal",
+        "discount_total",
+        "shipping_total",
+        "grand_total",
+        "currency",
+        "coupon",
+        "coupon_code",
+        "idempotency_key",
     ]
 
     def has_add_permission(self, request):

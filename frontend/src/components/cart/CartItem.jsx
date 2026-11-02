@@ -1,15 +1,18 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { formatPrice } from '../../utils/format'
+import Button from '../common/Button'
+import Modal from '../common/Modal'
 import ProductImage from '../common/ProductImage'
 import QuantitySelector from '../common/QuantitySelector'
 
-const MAX_QUANTITY_PER_ITEM = 10
-
 export default function CartItem({ item, onQuantityChange, onRemove, isUpdating = false }) {
   const { variant } = item
-  const maxQuantity = Math.min(MAX_QUANTITY_PER_ITEM, Math.max(variant.stock_quantity, item.quantity))
-  const exceedsStock = item.quantity > variant.stock_quantity
+  const [stockNotice, setStockNotice] = useState(false)
+  const stockLeft = variant.stock_quantity
+  const maxQuantity = variant.is_available ? Math.max(stockLeft, 1) : Math.max(item.quantity, 1)
+  const exceedsStock = item.quantity > stockLeft
 
   return (
     <li className={`flex gap-3 py-4 sm:gap-4 sm:py-5 ${isUpdating ? 'opacity-60' : ''}`}>
@@ -30,6 +33,9 @@ export default function CartItem({ item, onQuantityChange, onRemove, isUpdating 
               {variant.product_name}
             </Link>
             <p className="text-xs text-muted">{variant.name}</p>
+            <p className="text-xs text-muted">
+              {formatPrice(variant.price)} × {item.quantity}
+            </p>
           </div>
           <p className="shrink-0 text-sm font-semibold whitespace-nowrap">{formatPrice(item.line_total)}</p>
         </div>
@@ -53,7 +59,7 @@ export default function CartItem({ item, onQuantityChange, onRemove, isUpdating 
             type="button"
             onClick={() => onRemove(item)}
             disabled={isUpdating}
-            className="-mr-2 min-h-11 px-2 text-xs text-muted underline-offset-2 hover:text-danger hover:underline"
+            title={`Only ${stockLeft} left in stock`}
           >
             Remove
           </button>

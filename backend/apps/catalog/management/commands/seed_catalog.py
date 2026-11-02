@@ -18,6 +18,7 @@ from apps.catalog.models import (
     SkinType,
     StockMovement,
 )
+from apps.catalog.services import change_stock
 from apps.looks.models import Look, LookStep
 from apps.orders.models import Coupon
 
@@ -70,14 +71,38 @@ PRODUCTS = [
     ("Gentle Foaming Face Wash", "Skincare", "Soap-free cleanser that removes oil without stripping.", False, [
         ("100 ml", "299.00", None, 40, ""),
     ]),
+    ("Creamy Comfort Cleanser", "Skincare", "Cream cleanser that cleans gently without drying sensitive skin.", False, [
+        ("100 ml", "289.00", None, 40, ""),
+    ]),
     ("Rose Water Toner", "Skincare", "Alcohol-free toner that refreshes and preps skin.", False, [
         ("150 ml", "249.00", None, 35, ""),
+    ]),
+    ("Tea Tree Clarifying Toner", "Skincare", "Light toner that helps calm oil and breakouts.", False, [
+        ("150 ml", "229.00", None, 40, ""),
+    ]),
+    ("Daily Glow Serum", "Skincare", "Lightweight hydrating serum for everyday glow under ₹299.", False, [
+        ("30 ml", "279.00", None, 40, ""),
+    ]),
+    ("Clarify Care Serum", "Skincare", "Targeted serum for congested, oily skin and breakouts.", False, [
+        ("30 ml", "399.00", None, 40, ""),
+    ]),
+    ("Spot Fade Serum", "Skincare", "Dark-spot focused serum to even the look of skin tone.", False, [
+        ("30 ml", "549.00", None, 40, ""),
     ]),
     ("Oil-Free Gel Moisturiser", "Skincare", "Weightless hydration with a matte finish.", False, [
         ("50 g", "449.00", None, 30, ""),
     ]),
+    ("Soft Day Cream", "Skincare", "Everyday moisturiser that keeps skin soft without a heavy feel.", False, [
+        ("50 g", "279.00", None, 40, ""),
+    ]),
+    ("Everyday SPF 30", "Skincare", "Light daily sun protection that fits every budget.", False, [
+        ("40 ml", "249.00", None, 40, ""),
+    ]),
     ("Overnight Repair Cream", "Skincare", "Rich night cream that restores softness while you sleep.", False, [
         ("50 g", "649.00", "749.00", 18, ""),
+    ]),
+    ("Night Glow Essence", "Skincare", "Feather-light overnight treatment for calm, fresh skin by morning.", False, [
+        ("30 ml", "279.00", None, 40, ""),
     ]),
     ("Repair Hair Oil", "Haircare", "Nourishing blend for frizz-free shine.", False, [
         ("100 ml", "449.00", None, 28, ""),
@@ -102,16 +127,29 @@ CONCERNS = [
 ]
 
 # product slug: (routine step, skin type slugs (empty = all), concern slugs)
+# Tags are deliberate so skin / concern / budget answers pull different heroes.
 PRODUCT_GUIDES = {
-    "gentle-foaming-face-wash": ("cleanser", [], ["acne", "oily-skin"]),
-    "rose-water-toner": ("toner", [], ["dull-skin"]),
-    "vitamin-c-glow-serum": ("serum", [], ["dull-skin", "pigmentation"]),
-    "oil-free-gel-moisturiser": ("moisturiser", ["oily", "combination", "normal"], ["oily-skin", "acne"]),
+    "gentle-foaming-face-wash": ("cleanser", ["oily", "combination", "normal"], ["acne", "oily-skin"]),
+    "creamy-comfort-cleanser": ("cleanser", ["dry", "sensitive"], ["dryness"]),
+    "rose-water-toner": ("toner", ["dry", "normal", "sensitive"], ["dull-skin", "dryness"]),
+    "tea-tree-clarifying-toner": ("toner", ["oily", "combination"], ["acne", "oily-skin"]),
+    "daily-glow-serum": ("serum", ["dry", "normal", "sensitive"], ["dull-skin", "dryness"]),
+    "clarify-care-serum": ("serum", ["oily", "combination"], ["acne", "oily-skin"]),
+    "spot-fade-serum": ("serum", [], ["pigmentation"]),
+    "vitamin-c-glow-serum": ("serum", [], ["dull-skin"]),
+    "soft-day-cream": ("moisturiser", ["dry", "sensitive", "normal"], ["dryness", "dull-skin"]),
+    "oil-free-gel-moisturiser": ("moisturiser", ["oily", "combination"], ["oily-skin", "acne"]),
+    "everyday-spf-30": ("sunscreen", [], ["tanning"]),
     "daily-sunscreen-spf-50": ("sunscreen", [], ["tanning", "pigmentation"]),
-    "overnight-repair-cream": ("night_treatment", ["dry", "normal", "sensitive"], ["dryness", "dull-skin"]),
+    "night-glow-essence": ("night_treatment", ["oily", "combination", "normal"], ["dull-skin", "oily-skin", "acne"]),
+    "overnight-repair-cream": ("night_treatment", ["dry", "sensitive", "normal"], ["dryness"]),
     "shea-body-lotion": ("", [], ["dryness"]),
     "repair-hair-oil": ("", [], ["frizzy-hair"]),
 }
+
+# Sample skincare SKUs that the quiz needs in stock. Re-seed tops them up when low.
+ROUTINE_STOCK_FLOOR = 25
+ROUTINE_STOCK_SLUGS = tuple(PRODUCT_GUIDES.keys())
 
 # Sample customers who write the sample reviews. They have no usable password, so nobody can sign in
 # as them. (email, first name, last name)
@@ -192,26 +230,47 @@ SAMPLE_REVIEWS = {
     ],
 }
 
-# (title, occasion, description, [(product slug, variant name or None, instruction)])
+# (title, occasion, description, is_active, [(product slug, variant name or None, instruction)])
 LOOKS = [
-    ("Fresh glow, no-makeup look", "Everyday", "Skin first: a dewy, healthy glow in five minutes.", [
+    ("Fresh glow, no-makeup look", "Everyday", "Skin first: a dewy, healthy glow in five minutes.", True, [
         ("vitamin-c-glow-serum", None, "Press two drops into clean skin."),
         ("daily-sunscreen-spf-50", "50 ml", "Finish skincare with two finger-lengths of sunscreen."),
         ("blush-stick", "Peach Glow", "Tap onto the cheeks and blend with your fingers."),
         ("hydrating-lip-balm", "Clear", "Add a soft shine to the lips."),
     ]),
-    ("Office-ready in ten minutes", "Office", "Polished, natural coverage that lasts from meetings to dinner.", [
+    ("Office-ready in ten minutes", "Office", "Polished, natural coverage that lasts from meetings to dinner.", True, [
         ("second-skin-foundation", "20 Sand", "Dot on the face and blend outwards."),
         ("blending-sponge", None, "Bounce the damp sponge over the skin for a seamless finish."),
         ("smudge-proof-kajal", None, "Line the lower waterline."),
         ("hydrating-lip-balm", "Cherry Tint", "Finish with a wash of colour."),
     ]),
-    ("Festive glam", "Festive", "Bold eyes and a classic red lip for Diwali, weddings and parties.", [
+    ("Festive glam", "Festive", "Bold eyes and a classic red lip for Diwali, weddings and parties.", True, [
         ("second-skin-foundation", "30 Honey", "Build two thin layers for full coverage."),
         ("blush-stick", "Pink Pop", "Swipe on the cheekbones and blend upwards."),
         ("smudge-proof-kajal", None, "Smudge along the upper lash line for a smoky edge."),
         ("volume-mascara", None, "Two coats from root to tip."),
         ("matte-velvet-lipstick", "01 Ruby Rush", "Line and fill for a bold red lip."),
+    ]),
+    ("Soft bridal glow", "Bridal", "Luminous skin, soft pink lips and defined lashes for the big day.", True, [
+        ("gentle-foaming-face-wash", None, "Start with a clean, calm base."),
+        ("vitamin-c-glow-serum", None, "Press serum in for a lit-from-within glow."),
+        ("second-skin-foundation", "10 Ivory", "Sheer coverage, built only where needed."),
+        ("blush-stick", "Peach Glow", "Warm the apples of the cheeks."),
+        ("volume-mascara", None, "One coat to open the eyes without drama."),
+        ("matte-velvet-lipstick", "02 Rose Nude", "A soft bridal lip that photographs well."),
+    ]),
+    ("Date-night berry", "Date night", "Warm flush, smoky kajal and a berry lip for evening plans.", True, [
+        ("second-skin-foundation", "30 Honey", "Even out the skin, keep the finish natural."),
+        ("blush-stick", "Pink Pop", "Blend up toward the temples."),
+        ("smudge-proof-kajal", None, "Smoke the outer corners for depth."),
+        ("volume-mascara", None, "Curl and coat the lashes."),
+        ("matte-velvet-lipstick", "03 Berry Bold", "Fill lips for a rich berry finish."),
+    ]),
+    ("Monsoon clean skin", "Everyday", "Draft look: lightweight skin care when humidity rises.", False, [
+        ("gentle-foaming-face-wash", None, "Cleanse without stripping."),
+        ("rose-water-toner", None, "Mist and pat in for a cool finish."),
+        ("oil-free-gel-moisturiser", None, "Seal with a light gel."),
+        ("daily-sunscreen-spf-50", "50 ml", "Never skip SPF, even under clouds."),
     ]),
 ]
 
@@ -285,18 +344,19 @@ class Command(BaseCommand):
                 },
             )
             self._seed_guides()
+            restocked = self._ensure_routine_stock()
             looks_created = self._seed_looks()
             reviews_created = self._seed_reviews()
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Sample catalog ready ({created_count} new products, {looks_created} new looks, "
-                f"{reviews_created} new reviews)."
+                f"{reviews_created} new reviews, {restocked} variants restocked for the quiz)."
             )
         )
 
     def _seed_guides(self):
-        """Concerns, plus quiz tags for sample products that have none yet."""
+        """Concerns, plus quiz tags so the skin quiz and shelves can match products."""
         concerns = {}
         for order, (name, slug, description) in enumerate(CONCERNS):
             concerns[slug], _ = Concern.objects.get_or_create(
@@ -306,23 +366,45 @@ class Command(BaseCommand):
 
         for slug, (step, skin_slugs, concern_slugs) in PRODUCT_GUIDES.items():
             product = Product.objects.filter(slug=slug).first()
-            if product is None or product.routine_step or product.concerns.exists():
+            if product is None:
                 continue
-            if step:
+            if step and product.routine_step != step:
                 product.routine_step = step
                 product.save(update_fields=["routine_step", "updated_at"])
             product.skin_types.set([skin_types[s] for s in skin_slugs if s in skin_types])
-            product.concerns.set([concerns[s] for s in concern_slugs])
+            product.concerns.set([concerns[s] for s in concern_slugs if s in concerns])
+
+    def _ensure_routine_stock(self):
+        """Top up quiz skincare variants so re-seed heals empty routine slots."""
+        restocked = 0
+        variants = ProductVariant.objects.filter(
+            product__slug__in=ROUTINE_STOCK_SLUGS,
+            is_active=True,
+            stock_quantity__lt=ROUTINE_STOCK_FLOOR,
+        ).select_related("product")
+        for variant in variants:
+            needed = ROUTINE_STOCK_FLOOR - variant.stock_quantity
+            if needed <= 0:
+                continue
+            change_stock(
+                variant.pk,
+                needed,
+                StockMovement.Reason.RESTOCK,
+                reference="seed_catalog quiz restock",
+            )
+            restocked += 1
+        return restocked
 
     def _seed_looks(self):
         created_count = 0
-        for order, (title, occasion, description, steps) in enumerate(LOOKS):
+        for order, (title, occasion, description, is_active, steps) in enumerate(LOOKS):
             look, created = Look.objects.get_or_create(
                 slug=slugify(title),
                 defaults={
                     "title": title,
                     "occasion": occasion,
                     "description": description,
+                    "is_active": is_active,
                     "sort_order": order,
                 },
             )

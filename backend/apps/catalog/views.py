@@ -15,11 +15,18 @@ from .serializers import (
     ConcernSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
+    RecommendationsQuerySerializer,
     ReviewSerializer,
     RoutineQuerySerializer,
     SkinTypeSerializer,
 )
-from .services import annotated_products, build_routine, user_has_received_product
+from .services import (
+    annotated_products,
+    build_homepage_picks,
+    build_recommendations,
+    build_routine,
+    user_has_received_product,
+)
 
 MAX_IDS_PER_REQUEST = 24
 RELATED_PRODUCT_LIMIT = 4
@@ -49,7 +56,9 @@ def filter_products(queryset, params, *, apply_price=True):
             | Q(brand__name__icontains=search)
             | Q(category__name__icontains=search)
             | Q(short_description__icontains=search)
-        )
+            | Q(variants__name__icontains=search)
+            | Q(variants__sku__icontains=search)
+        ).distinct()
 
     category = params.get("category")
     if category:
@@ -153,6 +162,39 @@ class RoutineView(APIView):
                 "bag_variant_ids": routine["bag_variant_ids"],
                 "total_price": f"{routine['total_price']:.2f}",
             }
+        )
+
+
+class RecommendationsView(APIView):
+    """
+    GET /api/catalog/recommendations/?context=home&skin_type=oily&concern=acne&max_price=499
+    GET /api/catalog/recommendations/?context=cart&subtotal=350
+    Product cards ranked for home personalization and cart upsells.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = RecommendationsQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        products = build_recommendations(**query.validated_data)
+        return Response(
+            ProductListSerializer(products, many=True, context={"request": request}).data
+        )
+
+
+class HomepagePicksView(APIView):
+    """
+    GET /api/catalog/homepage-picks/
+    Owner-curated home shelf (only active, in-stock products). Empty list when unset.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        products = build_homepage_picks()
+        return Response(
+            ProductListSerializer(products, many=True, context={"request": request}).data
         )
 
 

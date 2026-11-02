@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { authService } from '../services/authService'
+import { clearLocalBeautyProfile } from '../utils/beautyProfile'
 import { AuthContext } from './contexts'
 
 export default function AuthProvider({ children }) {
@@ -21,13 +22,22 @@ export default function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const loggedInUser = await authService.login(credentials)
+    // Account profile is the only source for personalization; drop any guest quiz cache.
+    clearLocalBeautyProfile()
     setUser(loggedInUser)
     return loggedInUser
   }, [])
 
   const register = useCallback(async (data) => {
     const newUser = await authService.register(data)
-    setUser(newUser)
+    const {
+      email_verification_required: _required,
+      email_verification_sent: _sent,
+      ...userFields
+    } = newUser
+    // New accounts start without personalization until they take the quiz while signed in.
+    clearLocalBeautyProfile()
+    setUser(userFields)
     return newUser
   }, [])
 
@@ -35,6 +45,7 @@ export default function AuthProvider({ children }) {
     try {
       await authService.logout()
     } finally {
+      clearLocalBeautyProfile()
       setUser(null)
     }
   }, [])
@@ -43,6 +54,16 @@ export default function AuthProvider({ children }) {
     const updatedUser = await authService.updateProfile(data)
     setUser(updatedUser)
     return updatedUser
+  }, [])
+
+  const saveBeautyProfile = useCallback(async (data) => {
+    const updatedUser = await authService.saveBeautyProfile(data)
+    setUser(updatedUser)
+    return updatedUser
+  }, [])
+
+  const applyUser = useCallback((nextUser) => {
+    setUser(nextUser)
   }, [])
 
   const value = useMemo(
@@ -54,8 +75,10 @@ export default function AuthProvider({ children }) {
       register,
       logout,
       updateProfile,
+      saveBeautyProfile,
+      applyUser,
     }),
-    [user, isCheckingSession, login, register, logout, updateProfile],
+    [user, isCheckingSession, login, register, logout, updateProfile, saveBeautyProfile, applyUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

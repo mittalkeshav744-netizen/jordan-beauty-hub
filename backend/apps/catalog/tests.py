@@ -1,11 +1,14 @@
 import shutil
 import tempfile
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -19,7 +22,7 @@ from apps.catalog.models import (
     SkinType,
     StockMovement,
 )
-from apps.catalog.services import InsufficientStockError, change_stock
+from apps.catalog.services import PRODUCT_IMAGE_SIDE, InsufficientStockError, change_stock
 from apps.orders.models import Order
 from apps.orders.services import change_order_status, place_order
 from apps.test_factories import make_address, make_product, make_user
@@ -51,6 +54,11 @@ class ProductApiTests(APITestCase):
     def test_filter_by_category_search_and_price(self):
         self.assertEqual(self.results("/api/catalog/products/?category=lips"), ["Matte Lipstick"])
         self.assertEqual(self.results("/api/catalog/products/?search=serum"), ["Glow Serum"])
+        self.lipstick.variants.update(name="Rose Nude")
+        self.assertEqual(self.results("/api/catalog/products/?search=rose"), ["Matte Lipstick"])
+        variant = self.lipstick.variants.get()
+        change_stock(variant.id, -variant.stock_quantity, "adjustment", "sold out for search")
+        self.assertEqual(self.results("/api/catalog/products/?search=lipstick"), ["Matte Lipstick"])
         self.assertEqual(self.results("/api/catalog/products/?max_price=700"), ["Matte Lipstick"])
         self.assertEqual(self.results("/api/catalog/products/?featured=true"), ["Matte Lipstick"])
 
@@ -153,10 +161,120 @@ class ConcernAndRoutineTests(APITestCase):
         self.assertEqual(set(response.data["bag_variant_ids"]), expected_ids)
         self.assertEqual(response.data["total_price"], "800.00")
 
+    def test_routine_soft_fills_skin_gated_steps_and_full_budget_ladder(self):
+        """Dry skin can still get a moisturiser, and every step fills under ₹299."""
+        self.product("Wash", "cleanser", "199.00")
+        self.product("Toner", "toner", "199.00")
+        self.product("Serum", "serum", "199.00")
+        self.product("Oily Only Cream", "moisturiser", "199.00", skin_types=[self.oily])
+        self.product("Sun", "sunscreen", "199.00")
+        self.product("Night", "night_treatment", "199.00")
+
+        response = self.client.get("/api/catalog/routine/?skin_type=dry&max_price=299")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        morning = {step["step"]: step["product"]["name"] for step in response.data["morning"]}
+        night = {step["step"]: step["product"]["name"] for step in response.data["night"]}
+        self.assertEqual(morning["cleanser"], "Wash")
+        self.assertEqual(morning["toner"], "Toner")
+        self.assertEqual(morning["serum"], "Serum")
+        self.assertEqual(morning["moisturiser"], "Oily Only Cream")  # soft skin fallback
+        self.assertEqual(morning["sunscreen"], "Sun")
+        self.assertEqual(night["night_treatment"], "Night")
+        self.assertTrue(all(step["product"] for step in response.data["morning"]))
+        self.assertTrue(all(step["product"] for step in response.data["night"]))
+
+    def test_routine_answers_change_serum_and_budget_picks(self):
+        """Concern and budget must change which product wins a step."""
+        pigmentation = Concern.objects.create(name="Pigmentation", slug="pigmentation")
+        self.product("Acne Serum", "serum", "400.00", skin_types=[self.oily], concerns=[self.acne])
+        self.product("Fade Serum", "serum", "550.00", concerns=[pigmentation])
+        self.product("Budget Serum", "serum", "250.00", skin_types=[self.oily], concerns=[self.acne])
+
+        acne = self.client.get("/api/catalog/routine/?skin_type=oily&concern=acne&max_price=999")
+        pigment = self.client.get(
+            "/api/catalog/routine/?skin_type=oily&concern=pigmentation&max_price=999"
+        )
+        tight = self.client.get("/api/catalog/routine/?skin_type=oily&concern=acne&max_price=299")
+
+        acne_serum = next(step["product"]["name"] for step in acne.data["morning"] if step["step"] == "serum")
+        pigment_serum = next(
+            step["product"]["name"] for step in pigment.data["morning"] if step["step"] == "serum"
+        )
+        tight_serum = next(step["product"]["name"] for step in tight.data["morning"] if step["step"] == "serum")
+
+        self.assertEqual(acne_serum, "Acne Serum")  # concern + higher price within budget
+        self.assertEqual(pigment_serum, "Fade Serum")
+        self.assertEqual(tight_serum, "Budget Serum")
+        self.assertNotEqual(acne_serum, pigment_serum)
+
     def test_routine_rejects_unknown_skin_type(self):
         response = self.client.get("/api/catalog/routine/?skin_type=martian")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("skin_type", response.data["errors"])
+
+    def test_recommendations_prefer_matching_concern(self):
+        self.product("Plain Cream", "moisturiser", "400.00")
+        match = self.product("Acne Gel", "serum", "450.00", concerns=[self.acne], skin_types=[self.oily])
+
+        response = self.client.get(
+            "/api/catalog/recommendations/?context=home&skin_type=oily&concern=acne"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["name"], match.name)
+
+    def test_cart_recommendations_return_affordable_add_ons(self):
+        self.product("Budget Balm", price="100.00")
+        self.product("Luxury Set", price="2000.00")
+        response = self.client.get("/api/catalog/recommendations/?context=cart&subtotal=400")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertLessEqual(len(response.data), 4)
+        names = [row["name"] for row in response.data]
+        self.assertIn("Budget Balm", names)
+
+
+class HomepagePicksAndFitSignalTests(APITestCase):
+    def setUp(self):
+        self.skincare = Category.objects.create(name="Skincare", slug="skincare-home")
+        self.brand = Brand.objects.create(name="Jordan Home", slug="jordan-home")
+
+    def test_homepage_picks_skip_oos_and_record_negative_signal(self):
+        from apps.catalog.models import ProductFitSignal
+        from apps.catalog.services import replace_homepage_picks
+
+        live = make_product(
+            "Live Serum",
+            price="300.00",
+            category=self.skincare,
+            brand=self.brand,
+            stock=5,
+        )
+        oos = make_product(
+            "Gone Cream",
+            price="300.00",
+            category=self.skincare,
+            brand=self.brand,
+            stock=0,
+        )
+        replace_homepage_picks([oos.pk, live.pk])
+
+        response = self.client.get("/api/catalog/homepage-picks/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([row["name"] for row in response.data], ["Live Serum"])
+        self.assertEqual(ProductFitSignal.objects.get(product=oos).negative_count, 1)
+        self.assertEqual(ProductFitSignal.objects.get(product=live).positive_count, 1)
+
+    def test_recommendations_prefer_higher_fit_score(self):
+        from apps.catalog.models import ProductFitSignal
+
+        weak = make_product("Weak Pick", price="400.00", category=self.skincare, brand=self.brand)
+        strong = make_product("Strong Pick", price="400.00", category=self.skincare, brand=self.brand)
+        ProductFitSignal.objects.create(product=weak, positive_count=0, negative_count=5)
+        ProductFitSignal.objects.create(product=strong, positive_count=5, negative_count=0)
+
+        response = self.client.get("/api/catalog/recommendations/?context=home")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["name"], "Strong Pick")
 
 
 class StockServiceTests(APITestCase):
@@ -272,3 +390,49 @@ class AttachSampleImagesCommandTests(TestCase):
         alts = list(self.product.images.order_by("sort_order").values_list("alt_text", flat=True))
         self.assertEqual(len(alts), 3)
         self.assertEqual(alts[0], "Own photo")
+
+
+class ProductImageFormatTests(TestCase):
+    def setUp(self):
+        self.media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
+        self.settings_override = override_settings(MEDIA_ROOT=self.media_root)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.product = make_product()
+
+    def test_upload_is_stored_as_a_square_jpeg(self):
+        wide = Image.new("RGB", (200, 100), (0, 0, 255))
+        wide.paste(Image.new("RGB", (100, 100), (255, 0, 0)), (0, 0))
+        buffer = BytesIO()
+        wide.save(buffer, format="PNG")
+        photo = ProductImage(product=self.product, alt_text="Bottle", sort_order=0)
+        photo.image = SimpleUploadedFile("bottle.png", buffer.getvalue(), content_type="image/png")
+        photo.save()
+
+        self.assertTrue(photo.image.name.endswith(".jpg"))
+        saved = Image.open(photo.image.path)
+        self.assertEqual(saved.format, "JPEG")
+        self.assertEqual(saved.size, (PRODUCT_IMAGE_SIDE, PRODUCT_IMAGE_SIDE))
+        self.assertGreater(saved.getpixel((0, 600))[0], 200)
+        self.assertGreater(saved.getpixel((1199, 600))[2], 200)
+
+        photo.alt_text = "Bottle front"
+        photo.save()
+        self.assertEqual(Image.open(photo.image.path).size, (PRODUCT_IMAGE_SIDE, PRODUCT_IMAGE_SIDE))
+
+    def test_transparent_png_is_placed_on_white(self):
+        image = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        photo = ProductImage(product=self.product, sort_order=0)
+        photo.image = SimpleUploadedFile("clear.png", buffer.getvalue(), content_type="image/png")
+        photo.save()
+        self.assertEqual(Image.open(photo.image.path).getpixel((0, 0)), (255, 255, 255))
+
+    def test_a_file_that_is_not_a_photo_is_rejected(self):
+        photo = ProductImage(product=self.product, sort_order=0)
+        photo.image = SimpleUploadedFile("notes.png", b"not-a-photo", content_type="image/png")
+        with self.assertRaises(ValidationError):
+            photo.save()
+        self.assertFalse(ProductImage.objects.filter(product=self.product).exists())

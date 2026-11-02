@@ -18,3 +18,29 @@ export const validPinCode = (value) =>
 
 export const minLength = (value, length) =>
   String(value ?? '').length >= length ? '' : `Must be at least ${length} characters.`
+
+/** Money / decimal amount that must be a finite number ≥ 0 (empty fails). */
+export const validMoney = (value, label = 'Amount') => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return `${label} is required.`
+  const number = Number(raw)
+  if (!Number.isFinite(number) || number < 0) return `Enter a valid ${label.toLowerCase()}.`
+  return ''
+}
+
+/** Optional money: blank OK, otherwise same rules as validMoney. */
+export const optionalMoney = (value, label = 'Amount') => {
+  if (!String(value ?? '').trim()) return ''
+  return validMoney(value, label)
+}
+
+export const validNonNegativeInt = (value, label = 'Quantity') => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return `${label} is required.`
+  if (!/^\d+$/.test(raw)) return `${label} must be a whole number.`
+  return ''
+}
+
+/** Drop empty messages; keep only fields with errors. */
+export const compactErrors = (map) =>
+  Object.fromEntries(Object.entries(map).filter(([, message]) => Boolean(message)))

@@ -15,8 +15,8 @@ export default function LooksShowcase() {
   if (!isLoading && !error && looks.length === 0) return null
 
   return (
-    <section aria-labelledby="looks-heading" className="bg-cream py-10 sm:py-14">
-      <div className="page-container space-y-6">
+    <section aria-labelledby="looks-heading" className="bg-cream py-7 sm:py-14">
+      <div className="page-container space-y-4 sm:space-y-6">
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 id="looks-heading" className="section-title">

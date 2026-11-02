@@ -38,18 +38,18 @@ export default function ProductCard({ product, onAddToCart, isAdding = false }) 
         <WishlistButton product={product} className="absolute top-2 right-2 sm:top-3 sm:right-3" />
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
-        <p className="truncate text-[0.65rem] font-semibold tracking-widest text-muted uppercase sm:text-[0.7rem]">
-          {product.brand.name}
+      <div className="flex flex-1 flex-col gap-1 p-2.5 sm:gap-2 sm:p-4">
+        <p className="truncate text-[0.6rem] font-semibold tracking-widest text-muted uppercase sm:text-[0.7rem]">
+          {product.brand?.name}
         </p>
-        <h3 className="line-clamp-2 text-sm font-medium">
+        <h3 className="line-clamp-2 text-xs font-medium sm:text-sm">
           <Link to={productUrl} className="hover:text-accent">
             {product.name}
           </Link>
         </h3>
         <RatingDisplay rating={product.average_rating} reviewCount={product.review_count} />
-        {hasChoices && <p className="text-xs text-muted">{product.variant_count} shades / sizes</p>}
-        <div className="mt-auto pt-2">
+        {hasChoices && <p className="text-[0.65rem] text-muted sm:text-xs">{product.variant_count} shades / sizes</p>}
+        <div className="mt-auto pt-1.5 sm:pt-2">
           <PriceDisplay
             price={product.min_price}
             compareAtPrice={product.min_compare_at_price}
@@ -60,14 +60,14 @@ export default function ProductCard({ product, onAddToCart, isAdding = false }) 
           <Button
             size="sm"
             fullWidth
-            className="px-2 sm:px-3"
+            className="px-1.5 sm:px-3"
             isLoading={isAdding}
             onClick={() => onAddToCart(product.default_variant_id, 1, product.name)}
           >
             Add to bag
           </Button>
         ) : (
-          <Button size="sm" variant="outline" fullWidth to={productUrl} className="px-2 sm:px-3">
+          <Button size="sm" variant="outline" fullWidth to={productUrl} className="px-1.5 sm:px-3">
             {product.is_in_stock ? 'Choose shade' : 'View details'}
           </Button>
         )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import CartItem from '../components/cart/CartItem'
+import CartUpsellShelf from '../components/cart/CartUpsellShelf'
 import CheckoutSteps from '../components/cart/CheckoutSteps'
 import FreeShippingProgress from '../components/cart/FreeShippingProgress'
 import OrderSummary from '../components/cart/OrderSummary'
@@ -40,9 +41,9 @@ export default function CartPage() {
   if (isLoading && cart.items.length === 0) return <PageLoader label="Loading your bag…" />
 
   return (
-    <div className="page-container py-6 sm:py-8">
+    <div className="page-container py-5 sm:py-8">
       {cart.items.length > 0 && <CheckoutSteps current={0} />}
-      <h1 className="section-title mb-4 sm:mb-6">Your bag</h1>
+      <h1 className="section-title mb-3 sm:mb-6">Your bag</h1>
       {error && <ErrorMessage error={error} onRetry={refreshCart} />}
       {!error && cart.items.length === 0 && (
         <EmptyState
@@ -75,6 +76,9 @@ export default function CartPage() {
                 Checkout
               </Button>
             </OrderSummary>
+          </div>
+          <div className="lg:col-span-2">
+            <CartUpsellShelf subtotal={cart.subtotal} />
           </div>
         </div>
       )}

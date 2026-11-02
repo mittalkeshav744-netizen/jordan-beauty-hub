@@ -51,6 +51,16 @@ class CartApiTests(APITestCase):
         self.assertEqual(self.add(1).status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(self.add(1, variant_id=99999).status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_line_total_is_unit_price_times_quantity(self):
+        variant = make_product(price="299.00", stock=40, name="Face Wash").variants.get()
+        response = self.add(39, variant_id=variant.pk)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        item = response.data["items"][0]
+        self.assertEqual(item["quantity"], 39)
+        self.assertEqual(item["line_total"], "11661.00")
+        self.assertEqual(response.data["item_count"], 39)
+        self.assertEqual(response.data["subtotal"], "11661.00")
+
     def test_update_and_remove_item(self):
         item_id = self.add(1).data["items"][0]["id"]
         response = self.client.patch(f"/api/cart/items/{item_id}/", {"quantity": 4})

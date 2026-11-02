@@ -40,12 +40,21 @@ class SpaServingTests(SimpleTestCase):
         self.assertEqual(product.status_code, 200)
         self.assertIn(b"<title>Shop</title>", response_bytes(home))
         self.assertIn(b"<title>Shop</title>", response_bytes(shop))
+        self.assertIn("no-store", home["Cache-Control"])
+        self.assertIn("no-store", shop["Cache-Control"])
 
     def test_serves_built_asset_files(self):
         with override_settings(FRONTEND_DIST=self.dist):
             response = self.client.get("/assets/app.js")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"console.log", response_bytes(response))
+        self.assertIn("immutable", response["Cache-Control"])
+
+    def test_missing_asset_is_404_not_index_html(self):
+        """Stale hashed chunks must not receive index.html (that blanks React lazy routes)."""
+        with override_settings(FRONTEND_DIST=self.dist):
+            response = self.client.get("/assets/ReviewsPage-missinghash.js")
+        self.assertEqual(response.status_code, 404)
 
     def test_rejects_path_traversal(self):
         request = RequestFactory().get("/")

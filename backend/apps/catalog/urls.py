@@ -12,5 +12,7 @@ router.register("products", views.ProductViewSet, basename="product")
 
 urlpatterns = [
     path("routine/", views.RoutineView.as_view(), name="routine"),
+    path("recommendations/", views.RecommendationsView.as_view(), name="recommendations"),
+    path("homepage-picks/", views.HomepagePicksView.as_view(), name="homepage-picks"),
     *router.urls,
 ]

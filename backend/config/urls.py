@@ -6,10 +6,6 @@ from django.urls import include, path, re_path
 
 from config.spa import serve_frontend
 
-admin.site.site_header = "Jordan Beauty Hub administration"
-admin.site.site_title = "Jordan Beauty Hub admin"
-admin.site.index_title = "Store management"
-
 
 def health_check(request):
     return JsonResponse({"status": "ok"})
@@ -25,6 +21,8 @@ urlpatterns = [
     path("api/wishlist/", include("apps.wishlist.urls")),
     path("api/store/", include("apps.store.urls")),
     path("api/looks/", include("apps.looks.urls")),
+    path("api/courses/", include("apps.courses.urls")),
+    path("api/portal/", include("apps.portal.urls")),
 ]
 
 if settings.DEBUG:

@@ -20,7 +20,7 @@ function useProductSuggestions(term, isEnabled) {
     let isCurrent = true
     const timer = setTimeout(() => {
       catalogService.getProducts({ search: term, page_size: SUGGESTION_LIMIT }).then(
-        (page) => isCurrent && setResult({ term, products: page.results }),
+        (page) => isCurrent && setResult({ term, products: Array.isArray(page?.results) ? page.results : [] }),
         () => isCurrent && setResult({ term, products: [] }),
       )
     }, TYPING_DELAY_MS)
@@ -152,7 +152,7 @@ export default function SearchBar({ className = '', onSearch, id, autoFocus = fa
             />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm">{product.name}</span>
-              <span className="block truncate text-xs text-muted">{product.brand.name}</span>
+              <span className="block truncate text-xs text-muted">{product.brand?.name}</span>
             </span>
             <span className="shrink-0 text-sm font-medium">{formatPrice(product.min_price)}</span>
           </li>

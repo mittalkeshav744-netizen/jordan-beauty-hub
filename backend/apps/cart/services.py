@@ -26,8 +26,6 @@ def cart_items_queryset(cart):
 def validate_quantity(variant, quantity):
     if quantity < 1:
         raise CartError("Quantity must be at least 1.")
-    if quantity > settings.MAX_CART_ITEM_QUANTITY:
-        raise CartError(f"You can buy at most {settings.MAX_CART_ITEM_QUANTITY} of each item.")
     if not variant.is_active or not variant.product.is_active:
         raise CartError("This product is no longer available.")
     if variant.stock_quantity < quantity:
@@ -36,6 +34,8 @@ def validate_quantity(variant, quantity):
         raise CartError(
             f"Only {variant.stock_quantity} of {variant.product.name} ({variant.name}) available."
         )
+    if quantity > settings.MAX_CART_ITEM_QUANTITY:
+        raise CartError(f"You can buy at most {settings.MAX_CART_ITEM_QUANTITY} of each item.")
 
 
 @transaction.atomic

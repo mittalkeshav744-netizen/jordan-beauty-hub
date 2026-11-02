@@ -1,5 +1,5 @@
 import { getErrorMessage, getFieldErrors } from './errors'
-import { discountPercent, formatPrice } from './format'
+import { discountPercent, formatPrice, multiplyMoney, sumMoney } from './format'
 import { validPhone, validPinCode } from './validators'
 
 describe('format', () => {
@@ -7,6 +7,12 @@ describe('format', () => {
     expect(formatPrice('125000.50')).toBe('₹1,25,000.50')
     expect(formatPrice('139.8')).toBe('₹139.80')
     expect(formatPrice('699.00')).toBe('₹699')
+  })
+
+  it('multiplies a unit price by quantity for the line total', () => {
+    expect(multiplyMoney('299.00', 39)).toBe('11661.00')
+    expect(multiplyMoney('399.00', 33)).toBe('13167.00')
+    expect(sumMoney(['11661.00', '13167.00'])).toBe('24828.00')
   })
 
   it('calculates discount percentages', () => {

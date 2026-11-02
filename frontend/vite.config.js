@@ -15,7 +15,13 @@ export default defineConfig(({ mode }) => {
       // changeOrigin stays off so Django sees the host the browser used: image URLs then
       // point back through this server, which a phone on the same Wi-Fi can reach.
       proxy: {
-        '/api': { target: backendUrl, changeOrigin: false },
+        // Long timeout so Mira SSE streams are not cut off while Gemini is writing.
+        '/api': {
+          target: backendUrl,
+          changeOrigin: false,
+          timeout: 120_000,
+          proxyTimeout: 120_000,
+        },
         '/admin': { target: backendUrl, changeOrigin: false },
         '/static': { target: backendUrl, changeOrigin: false },
         '/media': { target: backendUrl, changeOrigin: false },

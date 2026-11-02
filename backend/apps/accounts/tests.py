@@ -1,7 +1,7 @@
 import re
 
 from django.core import mail
-from django.test import override_settings
+from django.test import Client, TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -22,8 +22,13 @@ class AuthenticationTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["email"], "new@example.com")
+        self.assertFalse(response.data["email_verified"])
+        self.assertTrue(response.data["email_verification_required"])
+        self.assertTrue(response.data["email_verification_sent"])
         self.assertNotIn("password", response.data)
         self.assertEqual(self.client.get("/api/auth/me/").status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("verification code", mail.outbox[0].body.lower())
 
     def test_register_without_last_name(self):
         response = self.client.post(
@@ -90,6 +95,51 @@ class AuthenticationTests(APITestCase):
         self.assertFalse(user.is_staff)
         self.assertEqual(user.first_name, "Riya")
 
+    def test_user_cannot_change_own_superuser_flag(self):
+        user = make_user(is_staff=True)
+        self.client.force_authenticate(user)
+        response = self.client.get("/api/auth/me/")
+        self.assertTrue(response.data["is_staff"])
+        self.assertFalse(response.data["is_superuser"])
+        self.client.patch("/api/auth/me/", {"is_superuser": True})
+        user.refresh_from_db()
+        self.assertFalse(user.is_superuser)
+
+    def test_beauty_profile_save_and_session_include_profile(self):
+        from apps.catalog.models import Concern, SkinType
+
+        SkinType.objects.get_or_create(slug="oily", defaults={"name": "Oily"})
+        Concern.objects.get_or_create(slug="acne", defaults={"name": "Acne", "is_active": True})
+        user = make_user(email="quiz@example.com")
+        self.client.force_authenticate(user)
+
+        save = self.client.put(
+            "/api/auth/beauty-profile/",
+            {
+                "skin_type": "oily",
+                "primary_concern": "acne",
+                "budget_preference": "499",
+                "raw_quiz_answers": {"skin": "oily", "concern": "acne", "budget": "499"},
+            },
+            format="json",
+        )
+        self.assertEqual(save.status_code, status.HTTP_200_OK)
+        self.assertEqual(save.data["beauty_profile"]["skin_type"], "oily")
+        self.assertEqual(save.data["beauty_profile"]["primary_concern"], "acne")
+        self.assertEqual(save.data["beauty_profile"]["budget_preference"], "499.00")
+
+        session = self.client.get("/api/auth/session/")
+        self.assertEqual(session.data["user"]["beauty_profile"]["skin_type"], "oily")
+
+        clear_concern = self.client.put(
+            "/api/auth/beauty-profile/",
+            {"skin_type": "oily", "primary_concern": "none", "budget_preference": "any"},
+            format="json",
+        )
+        self.assertEqual(clear_concern.status_code, status.HTTP_200_OK)
+        self.assertIsNone(clear_concern.data["beauty_profile"]["primary_concern"])
+        self.assertIsNone(clear_concern.data["beauty_profile"]["budget_preference"])
+
 
 @override_settings(FRONTEND_URL="https://shop.example.com")
 class PasswordResetTests(APITestCase):
@@ -139,6 +189,68 @@ class PasswordResetTests(APITestCase):
         user.refresh_from_db()
         self.assertTrue(user.check_password(DEFAULT_PASSWORD))
 
+    def otp_from_email(self):
+        match = re.search(r"password reset code is:\s*(\d{6})", mail.outbox[-1].body, re.I)
+        self.assertIsNotNone(match)
+        return match.group(1)
+
+    def test_otp_changes_password(self):
+        user = make_user(email="asha@example.com")
+        self.request_reset("asha@example.com")
+        code = self.otp_from_email()
+        response = self.client.post(
+            "/api/auth/password-reset/otp/",
+            {
+                "email": "ASHA@example.com",
+                "otp": code,
+                "new_password": "An0ther-strong-phrase!",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("An0ther-strong-phrase!"))
+        reuse = self.client.post(
+            "/api/auth/password-reset/otp/",
+            {
+                "email": "asha@example.com",
+                "otp": code,
+                "new_password": "Third-str0ng-phrase!",
+            },
+        )
+        self.assertEqual(reuse.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class EmailVerificationTests(APITestCase):
+    def verification_code(self):
+        match = re.search(r"verification code is:\s*(\d{6})", mail.outbox[-1].body, re.I)
+        self.assertIsNotNone(match)
+        return match.group(1)
+
+    def test_verify_email_with_otp(self):
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "verify@example.com",
+                "first_name": "Asha",
+                "password": DEFAULT_PASSWORD,
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        code = self.verification_code()
+        verified = self.client.post(
+            "/api/auth/email/verify/",
+            {"email": "verify@example.com", "otp": code},
+        )
+        self.assertEqual(verified.status_code, status.HTTP_200_OK)
+        self.assertTrue(verified.data["email_verified"])
+        me = self.client.get("/api/auth/me/")
+        self.assertTrue(me.data["email_verified"])
+
+    def test_resend_is_generic_for_unknown_email(self):
+        known = self.client.post("/api/auth/email/resend/", {"email": "nobody@example.com"})
+        self.assertEqual(known.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 0)
+
 
 class AddressTests(APITestCase):
     def setUp(self):
@@ -181,3 +293,70 @@ class AddressTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         response = self.client.delete(f"/api/auth/addresses/{other_address.pk}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class DeveloperAdminAccessTests(TestCase):
+    """Django Admin (/admin/) is limited to developer superusers."""
+
+    def setUp(self):
+        self.client = Client()
+        self.staff = make_user(email="owner@example.com", is_staff=True, is_superuser=False)
+        self.developer = make_user(
+            email="developer@example.com", is_staff=True, is_superuser=True
+        )
+
+    def test_staff_owner_cannot_open_admin(self):
+        self.client.force_login(self.staff)
+        response = self.client.get("/admin/")
+        # Authenticated but not authorised — Django redirects to the admin login.
+        self.assertIn(response.status_code, {302, 403})
+        if response.status_code == 302:
+            self.assertIn("/admin/login", response.url)
+
+    def test_developer_superuser_can_open_admin(self):
+        self.client.force_login(self.developer)
+        response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_exposes_the_shop_edit_screens(self):
+        from django.contrib import admin
+
+        from apps.catalog.models import Product, ProductImage, ProductVariant
+        from apps.orders.models import Order
+
+        self.client.force_login(self.developer)
+        product_page = self.client.get("/admin/catalog/product/add/")
+        self.assertEqual(product_page.status_code, 200)
+        self.assertContains(product_page, "Ingredients")
+        self.assertContains(product_page, "Product images")
+        self.assertContains(product_page, "Product variants")
+        self.assertContains(product_page, "1200×1200")
+
+        look_page = self.client.get("/admin/looks/look/add/")
+        self.assertEqual(look_page.status_code, 200)
+        self.assertContains(look_page, "Cover image")
+        self.assertContains(look_page, "Video")
+
+        user_page = self.client.get("/admin/accounts/user/add/")
+        self.assertEqual(user_page.status_code, 200)
+        self.assertContains(user_page, "Staff status")
+        self.assertContains(user_page, "Phone")
+
+        product_admin = admin.site._registry[Product]
+        inline_models = {inline.model for inline in product_admin.inlines}
+        self.assertIn(ProductVariant, inline_models)
+        self.assertIn(ProductImage, inline_models)
+
+        order_admin = admin.site._registry[Order]
+        self.assertNotIn("shipping_line1", order_admin.readonly_fields)
+        self.assertNotIn("customer_note", order_admin.readonly_fields)
+        self.assertIn("grand_total", order_admin.readonly_fields)
+
+        variant_page = self.client.get("/admin/catalog/productvariant/add/")
+        self.assertEqual(variant_page.status_code, 200)
+        self.assertContains(variant_page, "Stock quantity")
+
+    def test_staff_login_still_cannot_view_admin_index(self):
+        self.assertTrue(self.client.login(email=self.staff.email, password=DEFAULT_PASSWORD))
+        response = self.client.get("/admin/")
+        self.assertNotEqual(response.status_code, 200)

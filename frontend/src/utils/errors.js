@@ -5,12 +5,20 @@
 export function getErrorMessage(error, fallback = 'Something went wrong. Please try again.') {
   if (!error) return fallback
   if (error.code === 'ECONNABORTED') return 'The request timed out. Please try again.'
-  if (!error.response) return 'Cannot reach the server. Check your connection and try again.'
 
-  const { status, data } = error.response
+  const { status, data } = error.response || {}
   if (data?.detail) return data.detail
   if (status === 404) return 'We could not find what you were looking for.'
   if (status >= 500) return 'Our server had a problem. Please try again shortly.'
+
+  // Network / CORS failures usually have no HTTP response.
+  if (!error.response) {
+    const msg = typeof error.message === 'string' ? error.message.trim() : ''
+    if (msg && !/^failed to fetch$/i.test(msg) && !/^network ?error$/i.test(msg) && !/^load failed$/i.test(msg)) {
+      return msg
+    }
+    return 'Cannot reach the server. Check your connection and try again.'
+  }
   return fallback
 }
 

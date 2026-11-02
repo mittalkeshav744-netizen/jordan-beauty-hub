@@ -10,18 +10,21 @@ export const STORE_LOGO_SRC = null
 
 export const ANNOUNCEMENT = 'Cash on delivery available across India'
 
-/** Main navigation. Category links use the slugs created in Django Admin. */
-export const MAIN_NAV_LINKS = [
-  { label: 'Shop all', to: '/shop' },
-  { label: 'Lips', to: '/shop?category=lips' },
-  { label: 'Face', to: '/shop?category=face' },
-  { label: 'Eyes', to: '/shop?category=eyes' },
-  { label: 'Skincare', to: '/shop?category=skincare' },
-  { label: 'Haircare', to: '/shop?category=haircare' },
-  { label: 'Body Care', to: '/shop?category=body-care' },
+/** Always first in the shop nav. Category links are loaded from the catalog API. */
+export const SHOP_ALL_LINK = { label: 'Shop all', to: '/shop' }
+
+/** Non-category nav items (kept after API category links). */
+export const FEATURED_NAV_LINKS = [
   { label: 'Skin quiz', to: '/skin-quiz', highlight: true },
   { label: 'Get the look', to: '/looks', highlight: true },
+  { label: 'Courses', to: '/courses', highlight: true },
 ]
+
+/**
+ * @deprecated Prefer useNavCategories() — categories are no longer hardcoded.
+ * Kept as a static fallback shape for tests / empty API.
+ */
+export const MAIN_NAV_LINKS = [SHOP_ALL_LINK, ...FEATURED_NAV_LINKS]
 
 /** Scrolling strip under the home page banner. */
 export const MARQUEE_ITEMS = [
@@ -32,7 +35,10 @@ export const MARQUEE_ITEMS = [
   'Shop complete looks',
 ]
 
-/** "Shop by budget" tiles on the home page. Prices use the shop's existing price filter. */
+/**
+ * Fallback “Shop by budget” tiles when storefront config has none yet.
+ * Live tiles come from Owner Studio → Storefront → budget_tiles.
+ */
 export const BUDGET_LINKS = [
   { label: 'Under', amount: '₹299', to: '/shop?max_price=299' },
   { label: 'Under', amount: '₹499', to: '/shop?max_price=499' },
@@ -41,26 +47,30 @@ export const BUDGET_LINKS = [
 ]
 
 /** `show: 'guest'` links appear only when signed out, `show: 'member'` only when signed in. */
+/** Footer groups without category slugs — Shop categories are filled from the API. */
+export const FOOTER_SHOP_BASE_LINKS = [
+  { label: 'All products', to: '/shop' },
+  { label: 'Bestsellers', to: '/shop?featured=true' },
+]
+
+export const FOOTER_ACCOUNT_LINKS = [
+  { label: 'Sign in', to: '/login', show: 'guest' },
+  { label: 'My account', to: '/account', show: 'member' },
+  { label: 'My orders', to: '/account/orders' },
+  { label: 'My courses', to: '/account/courses', show: 'member' },
+  { label: 'Wishlist', to: '/account/wishlist' },
+  { label: 'Addresses', to: '/account' },
+  { label: 'Bag', to: '/cart' },
+]
+
 export const FOOTER_LINK_GROUPS = [
   {
     title: 'Shop',
-    links: [
-      { label: 'All products', to: '/shop' },
-      { label: 'Bestsellers', to: '/shop?featured=true' },
-      { label: 'Makeup', to: '/shop?category=lips,face,eyes' },
-      { label: 'Skincare', to: '/shop?category=skincare' },
-    ],
+    links: FOOTER_SHOP_BASE_LINKS,
   },
   {
     title: 'My account',
-    links: [
-      { label: 'Sign in', to: '/login', show: 'guest' },
-      { label: 'My account', to: '/account', show: 'member' },
-      { label: 'My orders', to: '/account/orders' },
-      { label: 'Wishlist', to: '/account/wishlist' },
-      { label: 'Addresses', to: '/account' },
-      { label: 'Bag', to: '/cart' },
-    ],
+    links: FOOTER_ACCOUNT_LINKS,
   },
   {
     title: 'Help',

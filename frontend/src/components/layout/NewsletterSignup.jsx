@@ -20,10 +20,15 @@ export default function NewsletterSignup() {
   }
 
   return (
-    <section aria-labelledby="newsletter-heading" className="bg-cream">
-      <div className="page-container grid gap-4 py-8 sm:py-10 md:grid-cols-2 md:items-center md:gap-10">
+    <section
+      aria-labelledby="newsletter-heading"
+      className="bg-cream"
+      data-manage-edit="/manage/newsletter?focus=newsletter"
+      data-manage-label="Newsletter signup"
+    >
+      <div className="page-container grid gap-3 py-6 sm:gap-4 sm:py-10 md:grid-cols-2 md:items-center md:gap-10">
         <div className="space-y-1">
-          <h2 id="newsletter-heading" className="text-lg font-semibold">
+          <h2 id="newsletter-heading" className="text-base font-semibold sm:text-lg">
             Get offers and new launches first
           </h2>
           <p className="text-sm text-ink-soft">Join our newsletter. No spam, unsubscribe any time.</p>

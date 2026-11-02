@@ -252,6 +252,13 @@ def _create_order(user, address, idempotency_key, coupon_code, customer_note):
     )
     record_status(order, "", Order.Status.PENDING, user, "Order placed")
     cart.items.all().delete()
+    # Best-effort confirmation email; checkout must not fail if mail is down.
+    try:
+        from .emails import send_order_confirmation_email
+
+        send_order_confirmation_email(order)
+    except Exception:
+        pass
     return order
 
 
