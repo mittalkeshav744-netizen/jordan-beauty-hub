@@ -85,6 +85,12 @@ environment-specific value comes from environment variables.
 - **Packaging documents** on order detail (and bulk-select on the orders list): packing slips
   (no prices, packed checkboxes) and thank-you inserts, with preview, print (A4 / A5), and
   PDF download via jsPDF — client-side only; nothing is stored on the server
+- **Certificate Management** (`/certificate`, same staff login): independent academy UI for
+  courses (shared `Course` records with the shop), students, groups, templates, PDF issuance,
+  email logs, reports and public verification at `/certificate/verify/<id>`. Seed samples with
+  `python manage.py seed_beauty_courses` (DEBUG only). PDFs are generated server-side
+  (reportlab / pypdf / qrcode) and stored under `backend/media/certificates/`.
+  Schedule due emails with `python manage.py process_certificate_queue` (Task Scheduler/cron).
 - Django Admin is restricted to **developer superusers** (`is_superuser=True`, from
   `createsuperuser`) for deep catalogue work (images, brands, categories, look media,
   users/permissions). Store staff (`is_staff` only) use `/manage` and cannot open `/admin/`
@@ -296,6 +302,7 @@ cd backend            # with the virtual environment activated
 python manage.py migrate
 python manage.py seed_catalog          # optional: sample categories, products and coupon WELCOME10
 python manage.py attach_sample_images  # optional: 3 placeholder photos per sample product
+python manage.py seed_beauty_courses   # optional: beauty academy courses + default certificate template
 ```
 
 `seed_catalog` only runs when `DJANGO_DEBUG=True`. It also adds skincare routine steps,
@@ -308,7 +315,9 @@ delivered order can review. Running it again only adds what is missing.
 `attach_sample_images` (also `DJANGO_DEBUG=True` only) tops every sample product up to three
 photos: free CC0 photos downloaded from the web, then AI-generated photos stored in
 `backend/apps/catalog/sample_images/` (files ending in `-ai.jpg`). Replace them with real
-product photos in Django Admin (Catalog → Products → product → Images).
+product photos in Django Admin (Catalog → Products → product → Images). New uploads are
+stored as **2000×2000 JPEG** (for sharper PDP zoom); re-upload older photos to regenerate them
+at that size.
 
 ### Adding videos
 
@@ -420,6 +429,9 @@ automatically). Errors always look like `{"detail": "...", "errors": {"field": [
 | POST | `/api/store/chat/stream/` | — | Same payload; SSE events `status` / `token` / `done` / `error` |
 | GET | `/api/looks/` | — | Active looks (cards) |
 | GET | `/api/looks/{slug}/` | — | One look with its steps, `bag_variant_ids` and `total_price` |
+| GET | `/api/certificates/dashboard/` | staff | Certificate studio KPI snapshot |
+| GET/POST… | `/api/certificates/*` | staff | Courses, students, groups, templates, issued certs, email logs, jobs, settings |
+| GET | `/api/certificates/verify/{public_id}/` | — | Public certificate authenticity (throttled; no private student fields) |
 | GET | `/api/portal/dashboard/` | staff | Owner portal KPI snapshot |
 | GET | `/api/portal/settings/` | staff | Store settings overview + Django Admin URL |
 | GET | `/api/portal/orders/` | staff | All orders (`status`, `search`, `page`) |
@@ -570,24 +582,25 @@ force-pushing.
 
 ## 23. Current limitations and unfinished features
 
-- **Online payments are not implemented.** Only Cash on Delivery. The `payments` app keeps
-  payment state separate from order status; a gateway (e.g. Razorpay) must verify payments
-  on the server (signature/webhook with duplicate-event protection) before marking them paid.
-- **Shipping** is a configurable flat fee + free-shipping threshold. No courier/tracking
-  integration yet.
+- **Online payments (Razorpay)** are scaffolded. COD always works. When you add
+  `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to `backend/.env` (and `pip install razorpay`
+  if needed), checkout shows “Pay online”; create/verify endpoints live under `/api/payments/`.
+  Finish webhook signature checks before go-live.
+- **Delivery / tracking** supports manual courier fields on orders (Owner Portal → order →
+  Courier & tracking). Customer order pages show tracking when set. Auto-shipment APIs wait
+  on `DELIVERY_*` credentials in `.env`.
 - **Guest checkout is not supported** — customers sign in to use the bag (by design for the MVP).
 - Auth and order emails (signup OTP, password-reset OTP + backup link, order confirmation)
   print in the Django terminal until an SMTP provider is configured (`EMAIL_*` in
-  `backend/.env`). Newsletter signups are only collected (no campaign emails are sent).
-- Policy pages (`frontend/src/constants/policies.js`) are drafts; the owner should review them
-  and add business contact details before going live.
+  `backend/.env`). Newsletter campaigns can be sent from Owner Portal when SMTP is configured.
+- Policy pages are editable in Owner Portal → Storefront → Policies & logo (API-backed;
+  `frontend/src/constants/policies.js` is the fallback). Review copy and contact details before go-live.
 - No product variants beyond a single option (shade *or* size), or tax invoices.
-- Reports are limited to Django Admin lists, filters and date drill-downs.
-- Brand logo and product photography are pending. The header and footer show a square
-  "JBH" placeholder mark next to the wordmark. To add the real logo, save it as
-  `frontend/public/logo.svg` (or `.png`) and set `STORE_LOGO_SRC = '/logo.svg'` in
-  `frontend/src/constants/navigation.js`; also replace `frontend/public/favicon.svg`.
-  Products without photos show neutral image placeholders.
+- Reports are limited to Django Admin lists, filters and date drill-downs, plus the certificate reports UI.
+- Brand logo: upload via Owner Portal → Storefront → Policies & logo, or set `STORE_LOGO_SRC`
+  in `frontend/src/constants/navigation.js` / `frontend/public/logo.svg`. Replace
+  `frontend/public/favicon.svg` for the browser tab icon. Products without photos show
+  neutral image placeholders.
 - The skin quiz picks products by their routine step, skin types and concerns. Those must be
   set on each skincare product in Django Admin; steps with no matching product show
   "No match yet". The quiz gives product suggestions, not medical advice.

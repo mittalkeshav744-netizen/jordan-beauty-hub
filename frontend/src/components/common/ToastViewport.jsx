@@ -20,7 +20,7 @@ export default function ToastViewport({ toasts, onDismiss }) {
           <button
             type="button"
             onClick={() => onDismiss(toast.id)}
-            className="-my-3 -mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-lg opacity-70 hover:opacity-100"
+            className="btn-icon -my-3 -mr-3 h-11 w-11 text-lg opacity-70 hover:opacity-100"
             aria-label="Dismiss notification"
           >
             ×

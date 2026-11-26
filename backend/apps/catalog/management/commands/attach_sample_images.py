@@ -253,7 +253,7 @@ CATEGORY_IMAGES = [
      (0.08, 0.0, 0.92, 1.0), 238),
 ]
 
-MAX_SIDE = 1200
+MAX_SIDE = 2000
 
 
 def fetch_image(url, crop=None, white_point=255):
@@ -274,7 +274,7 @@ def fetch_image(url, crop=None, white_point=255):
         image = image.point(lambda value: min(255, value * 255 // white_point))
     image.thumbnail((MAX_SIDE, MAX_SIDE))
     output = BytesIO()
-    image.save(output, format="JPEG", quality=85, optimize=True)
+    image.save(output, format="JPEG", quality=90, optimize=True)
     return output.getvalue()
 
 

@@ -32,4 +32,17 @@ describe('ProductGallery', () => {
     )
     expect(screen.queryByRole('button', { name: /zoom/i })).not.toBeInTheDocument()
   })
+
+  it('shows a full-resolution hover pan layer while the pointer is over the image', async () => {
+    const user = userEvent.setup()
+    render(<ProductGallery images={IMAGES} productName="Rose Mist" />)
+    const zoomButton = screen.getByRole('button', { name: /zoom rose mist image/i })
+
+    await user.hover(zoomButton)
+    const layer = screen.getByTestId('gallery-hover-zoom')
+    expect(layer).toHaveStyle({
+      backgroundSize: '200%',
+    })
+    expect(layer.style.backgroundImage).toContain('example.com/a.jpg')
+  })
 })

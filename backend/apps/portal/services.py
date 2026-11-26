@@ -314,6 +314,7 @@ def create_portal_product(
     category_id,
     short_description="",
     variant_name="",
+    shade_hex="",
     price,
     compare_at_price=None,
     stock_quantity=0,
@@ -333,6 +334,7 @@ def create_portal_product(
         sku=_unique_sku(product.slug),
         price=price,
         compare_at_price=compare_at_price,
+        shade_hex=(shade_hex or "").strip(),
         stock_quantity=0,
         is_active=True,
     )
@@ -342,13 +344,16 @@ def create_portal_product(
 
 
 @transaction.atomic
-def add_portal_variant(product, *, name, price, compare_at_price=None, stock_quantity=0, user=None):
+def add_portal_variant(
+    product, *, name, price, compare_at_price=None, shade_hex="", stock_quantity=0, user=None
+):
     variant = ProductVariant.objects.create(
         product=product,
         name=name.strip(),
         sku=_unique_sku(f"{product.slug}-{name}"),
         price=price,
         compare_at_price=compare_at_price,
+        shade_hex=(shade_hex or "").strip(),
         stock_quantity=0,
         is_active=True,
     )
@@ -357,12 +362,16 @@ def add_portal_variant(product, *, name, price, compare_at_price=None, stock_qua
     return variant
 
 
-def update_portal_variant(variant, *, name, price, compare_at_price, is_active):
+def update_portal_variant(variant, *, name, price, compare_at_price, is_active, shade_hex=None):
     variant.name = name.strip()
     variant.price = price
     variant.compare_at_price = compare_at_price
     variant.is_active = is_active
-    variant.save(update_fields=["name", "price", "compare_at_price", "is_active", "updated_at"])
+    update_fields = ["name", "price", "compare_at_price", "is_active", "updated_at"]
+    if shade_hex is not None:
+        variant.shade_hex = (shade_hex or "").strip()
+        update_fields.insert(-1, "shade_hex")
+    variant.save(update_fields=update_fields)
     return variant
 
 
@@ -375,7 +384,7 @@ class PortalImageError(Exception):
 
 @transaction.atomic
 def add_product_images(product, files, *, alt_text=""):
-    """Attach photos. Each file is stored as the shop's 1200×1200 JPEG."""
+    """Attach photos. Each file is stored as the shop's 2000×2000 JPEG."""
     uploads = [uploaded for uploaded in files if uploaded]
     if not uploads:
         raise PortalImageError("Choose a photo.")

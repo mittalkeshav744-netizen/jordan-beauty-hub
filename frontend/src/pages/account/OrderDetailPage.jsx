@@ -88,6 +88,25 @@ export default function OrderDetailPage() {
               <p>{order.payment_method}</p>
               <p className="text-muted">Status: {order.payment_status}</p>
             </div>
+            {(order.tracking_number || order.tracking_url || order.courier_name) && (
+              <div className="rounded-card border border-line p-4 text-sm sm:col-span-2">
+                <h3 className="mb-2 text-xs font-semibold tracking-widest uppercase">Shipment tracking</h3>
+                {order.courier_name ? <p className="font-medium">{order.courier_name}</p> : null}
+                {order.tracking_number ? (
+                  <p className="text-ink-soft">Tracking number: {order.tracking_number}</p>
+                ) : null}
+                {order.tracking_url ? (
+                  <a
+                    href={order.tracking_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-block text-accent hover:underline"
+                  >
+                    Track parcel
+                  </a>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div>

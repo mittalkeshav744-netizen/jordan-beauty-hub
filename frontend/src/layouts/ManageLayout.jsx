@@ -27,6 +27,7 @@ const NAV_GROUPS = [
       { to: '/manage/categories', label: 'Categories', title: 'Categories', icon: 'categories' },
       { to: '/manage/looks', label: 'Looks', title: 'Looks', icon: 'looks' },
       { to: '/manage/courses', label: 'Courses', title: 'Courses', icon: 'courses' },
+      { to: '/certificate/dashboard', label: 'Certificates', title: 'Certificates', icon: 'award' },
     ],
   },
   {
@@ -209,7 +210,7 @@ export default function ManageLayout() {
         Skip to content
       </a>
 
-      <div className="mx-auto flex min-h-dvh max-w-[96rem]">
+      <div className="flex min-h-dvh w-full">
         {/* Width slot stays pinned/collapsed only — peek overlays so content does not shift. */}
         <div
           className={`relative sticky top-0 z-30 h-dvh shrink-0 self-start print:hidden ${
@@ -367,7 +368,7 @@ export default function ManageLayout() {
                   title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                   aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                   aria-expanded={!collapsed}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-btn border border-line bg-surface text-ink-soft shadow-studio transition-colors hover:bg-cream hover:text-ink"
+                  className="btn-icon h-9 w-9 border border-line bg-surface text-ink-soft shadow-studio hover:bg-cream hover:text-ink"
                 >
                   <FaIcon icon="bars" className="h-3.5 w-3.5" />
                 </button>
@@ -382,7 +383,7 @@ export default function ManageLayout() {
                   onClick={() => setWebsiteMapOpen(true)}
                   aria-label="Website map"
                   title="Website map"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-btn border border-line bg-surface text-berry shadow-studio transition-colors hover:bg-cream"
+                  className="btn-icon h-10 w-10 border border-line bg-surface text-berry shadow-studio hover:bg-cream"
                 >
                   <FaIcon icon="map" className="h-3.5 w-3.5" />
                 </button>
@@ -390,7 +391,7 @@ export default function ManageLayout() {
                   href="/"
                   aria-label="Store"
                   title="Store"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-btn text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+                  className="btn-icon h-10 w-10 text-ink-soft hover:bg-cream hover:text-ink"
                 >
                   <FaIcon icon="store" className="h-3.5 w-3.5" />
                 </a>
@@ -399,7 +400,7 @@ export default function ManageLayout() {
                   onClick={handleLogout}
                   aria-label="Sign out"
                   title="Sign out"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-btn text-danger transition-colors hover:bg-danger-soft lg:hidden"
+                  className="btn-icon h-10 w-10 text-danger hover:bg-danger-soft lg:hidden"
                 >
                   <FaIcon icon="logout" className="h-3.5 w-3.5" />
                 </button>

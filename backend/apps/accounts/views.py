@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from config.exceptions import error_response
 
+from .firebase_auth import FirebaseAuthError, verify_firebase_id_token
 from .models import Address
 from .otp import OTPError
 from .serializers import (
@@ -27,6 +28,7 @@ from .services import (
     BeautyProfileError,
     EmailVerifyError,
     PasswordResetError,
+    get_or_create_user_for_phone,
     reset_password,
     reset_password_with_otp,
     save_beauty_profile,
@@ -79,6 +81,54 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login(request, serializer.validated_data["user"])
         return Response(UserSerializer(serializer.validated_data["user"]).data)
+
+
+class AuthConfigView(APIView):
+    """Public storefront config for phone OTP (and optional Razorpay key id)."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+
+        firebase_ready = bool(settings.FIREBASE_PROJECT_ID and settings.FIREBASE_WEB_API_KEY)
+        return Response(
+            {
+                "demo_auth": bool(settings.ALLOW_DEMO_AUTH),
+                "demo_otp": settings.DEMO_OTP if settings.ALLOW_DEMO_AUTH else "",
+                "firebase": firebase_ready,
+                "firebase_project_id": settings.FIREBASE_PROJECT_ID if firebase_ready else "",
+                "firebase_web_api_key": settings.FIREBASE_WEB_API_KEY if firebase_ready else "",
+                "razorpay": bool(settings.RAZORPAY_ENABLED),
+                "razorpay_key_id": settings.RAZORPAY_KEY_ID if settings.RAZORPAY_ENABLED else "",
+            }
+        )
+
+
+@method_decorator(csrf_protect, name="post")
+class FirebaseLoginView(APIView):
+    """
+    Exchange a Firebase phone ID token for a Django session.
+
+    Body: ``{"id_token": "<Firebase ID token or demo:+91…>"}``
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        id_token = (request.data.get("id_token") or "").strip()
+        if not id_token:
+            return error_response("Missing sign-in token.", status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            phone = verify_firebase_id_token(id_token)
+            user, _created = get_or_create_user_for_phone(phone)
+        except FirebaseAuthError as error:
+            return error_response(str(error), status_code=status.HTTP_400_BAD_REQUEST)
+        if not user.is_active:
+            return error_response("This account is disabled.", status_code=status.HTTP_403_FORBIDDEN)
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        return Response(UserSerializer(user).data)
 
 
 @method_decorator(csrf_protect, name="post")

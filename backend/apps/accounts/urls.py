@@ -8,8 +8,10 @@ router.register("addresses", views.AddressViewSet, basename="address")
 
 urlpatterns = [
     path("csrf/", views.CsrfTokenView.as_view(), name="csrf"),
+    path("config/", views.AuthConfigView.as_view(), name="auth-config"),
     path("register/", views.RegisterView.as_view(), name="register"),
     path("login/", views.LoginView.as_view(), name="login"),
+    path("firebase-login/", views.FirebaseLoginView.as_view(), name="firebase-login"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("password-reset/", views.PasswordResetRequestView.as_view(), name="password-reset"),
     path(

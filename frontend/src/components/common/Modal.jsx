@@ -111,7 +111,7 @@ export default function Modal({
               onClick={() => onCloseRef.current()}
               aria-label="Close"
               title="Close"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-btn text-danger transition-colors hover:bg-danger-soft"
+              className="btn-icon h-10 w-10 shrink-0 text-danger hover:bg-danger-soft"
             >
               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M6 6l12 12M18 6L6 18" />

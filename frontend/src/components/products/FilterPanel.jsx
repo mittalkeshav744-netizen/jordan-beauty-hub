@@ -76,11 +76,7 @@ export default function FilterPanel({ brands, priceBounds, filters, onChange, on
       {showHeader && (
         <div className="flex items-center justify-between border-b border-line pb-3">
           <h2 className="text-sm font-semibold tracking-[0.2em] uppercase">Filters</h2>
-          <button
-            type="button"
-            onClick={onClear}
-            className="-my-2 py-2 text-xs text-accent underline-offset-2 hover:underline"
-          >
+          <button type="button" onClick={onClear} className="btn-text -my-2 text-xs text-accent hover:text-accent">
             Clear all
           </button>
         </div>

@@ -48,6 +48,12 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
 
+class OrderShipmentSerializer(serializers.Serializer):
+    courier_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    tracking_number = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    tracking_url = serializers.URLField(required=False, allow_blank=True, max_length=500)
+
+
 def media_url(image_field, request):
     if not image_field:
         return ""
@@ -184,17 +190,35 @@ def _validate_sale_price(price, compare_at_price):
         )
 
 
+def _normalize_shade_hex(value):
+    """Blank = no swatch; otherwise require #RRGGBB."""
+    if value in (None, ""):
+        return ""
+    cleaned = str(value).strip()
+    if not cleaned:
+        return ""
+    if cleaned[0] != "#":
+        cleaned = f"#{cleaned}"
+    if len(cleaned) != 7 or any(ch not in "0123456789abcdefABCDEF" for ch in cleaned[1:]):
+        raise serializers.ValidationError("Enter a colour like #C46A6A, or leave blank.")
+    return f"#{cleaned[1:].upper()}"
+
+
 class PortalProductCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     brand_id = serializers.IntegerField()
     category_id = serializers.IntegerField()
     short_description = serializers.CharField(required=False, allow_blank=True, max_length=300)
     variant_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    shade_hex = serializers.CharField(required=False, allow_blank=True, max_length=7)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
     compare_at_price = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True
     )
     stock_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
+
+    def validate_shade_hex(self, value):
+        return _normalize_shade_hex(value)
 
     def validate(self, attrs):
         from apps.catalog.models import Brand, Category
@@ -213,8 +237,12 @@ class PortalVariantWriteSerializer(serializers.Serializer):
     compare_at_price = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True
     )
+    shade_hex = serializers.CharField(required=False, allow_blank=True, max_length=7)
     is_active = serializers.BooleanField(required=False, default=True)
     stock_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
+
+    def validate_shade_hex(self, value):
+        return _normalize_shade_hex(value)
 
     def validate(self, attrs):
         _validate_sale_price(attrs["price"], attrs.get("compare_at_price"))
@@ -227,7 +255,11 @@ class PortalVariantUpdateSerializer(serializers.Serializer):
     compare_at_price = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True
     )
+    shade_hex = serializers.CharField(required=False, allow_blank=True, max_length=7)
     is_active = serializers.BooleanField()
+
+    def validate_shade_hex(self, value):
+        return _normalize_shade_hex(value)
 
     def validate(self, attrs):
         _validate_sale_price(attrs["price"], attrs.get("compare_at_price"))
@@ -498,6 +530,7 @@ class PortalCategorySerializer(serializers.ModelSerializer):
 
 class PortalStorefrontConfigSerializer(serializers.ModelSerializer):
     hero_video_file_url = serializers.SerializerMethodField()
+    store_logo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = StorefrontConfig
@@ -528,13 +561,30 @@ class PortalStorefrontConfigSerializer(serializers.ModelSerializer):
             "benefits",
             "budget_tiles",
             "sections_order",
+            "footer_tagline",
+            "footer_shop_title",
+            "footer_account_title",
+            "footer_help_title",
+            "footer_shop_links",
+            "footer_account_links",
+            "footer_help_links",
+            "footer_include_categories",
+            "policies",
+            "store_logo",
+            "store_logo_url",
             "updated_at",
         ]
-        read_only_fields = ["id", "hero_video_file_url", "updated_at"]
-        extra_kwargs = {"hero_video_file": {"write_only": True, "required": False}}
+        read_only_fields = ["id", "hero_video_file_url", "store_logo_url", "updated_at"]
+        extra_kwargs = {
+            "hero_video_file": {"write_only": True, "required": False},
+            "store_logo": {"write_only": True, "required": False},
+        }
 
     def get_hero_video_file_url(self, config):
         return media_url(config.hero_video_file, self.context.get("request"))
+
+    def get_store_logo_url(self, config):
+        return media_url(config.store_logo, self.context.get("request"))
 
     def to_internal_value(self, data):
         # QueryDict stringifies list/dict values; use a plain dict for JSON fields.
@@ -548,6 +598,10 @@ class PortalStorefrontConfigSerializer(serializers.ModelSerializer):
             "benefits",
             "budget_tiles",
             "sections_order",
+            "footer_shop_links",
+            "footer_account_links",
+            "footer_help_links",
+            "policies",
         ):
             if key in mutable:
                 mutable[key] = _parse_json_if_string(mutable.get(key))
@@ -556,6 +610,10 @@ class PortalStorefrontConfigSerializer(serializers.ModelSerializer):
 
 class PortalStorefrontReelSerializer(serializers.ModelSerializer):
     video_file_url = serializers.SerializerMethodField()
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    product_name = serializers.SerializerMethodField()
+    product_slug = serializers.SerializerMethodField()
+    resolved_link_url = serializers.SerializerMethodField()
 
     class Meta:
         model = StorefrontReel
@@ -565,7 +623,12 @@ class PortalStorefrontReelSerializer(serializers.ModelSerializer):
             "video_file",
             "video_file_url",
             "video_url",
+            "link_type",
             "link_url",
+            "product_id",
+            "product_name",
+            "product_slug",
+            "resolved_link_url",
             "start_seconds",
             "loop_end_seconds",
             "sort_order",
@@ -573,11 +636,91 @@ class PortalStorefrontReelSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "video_file_url", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "video_file_url",
+            "product_name",
+            "product_slug",
+            "resolved_link_url",
+            "created_at",
+            "updated_at",
+        ]
         extra_kwargs = {"video_file": {"write_only": True, "required": False}}
 
     def get_video_file_url(self, reel):
         return media_url(reel.video_file, self.context.get("request"))
+
+    def get_product_name(self, reel):
+        return reel.product.name if reel.product_id else ""
+
+    def get_product_slug(self, reel):
+        return reel.product.slug if reel.product_id else ""
+
+    def get_resolved_link_url(self, reel):
+        return reel.resolved_link_url()
+
+    def validate(self, attrs):
+        link_type = attrs.get(
+            "link_type",
+            getattr(self.instance, "link_type", StorefrontReel.LinkType.PATH),
+        )
+        link_url = attrs.get(
+            "link_url",
+            getattr(self.instance, "link_url", "") if self.instance else "",
+        )
+        if "product_id" in attrs:
+            raw = attrs.get("product_id")
+            if raw in ("", None):
+                product_id = None
+            else:
+                try:
+                    product_id = int(raw)
+                except (TypeError, ValueError) as exc:
+                    raise serializers.ValidationError(
+                        {"product_id": "Pick a valid product."}
+                    ) from exc
+            attrs["product_id"] = product_id
+        else:
+            product_id = getattr(self.instance, "product_id", None) if self.instance else None
+
+        if link_type == StorefrontReel.LinkType.PRODUCT:
+            if not product_id:
+                raise serializers.ValidationError(
+                    {"product_id": "Pick the product this reel should open."}
+                )
+            from apps.catalog.models import Product
+
+            if not Product.objects.filter(pk=product_id).exists():
+                raise serializers.ValidationError({"product_id": "That product was not found."})
+            attrs.setdefault("link_url", getattr(self.instance, "link_url", "") if self.instance else "")
+        else:
+            cleaned = (link_url or "").strip() or "/shop"
+            if not cleaned.startswith("/"):
+                raise serializers.ValidationError(
+                    {
+                        "link_url": (
+                            "Use a site path starting with / "
+                            "(for example /shop?category=skincare)."
+                        )
+                    }
+                )
+            attrs["link_url"] = cleaned
+            attrs["product_id"] = None
+        attrs["link_type"] = link_type
+        return attrs
+
+    def create(self, validated_data):
+        product_id = validated_data.pop("product_id", None)
+        return StorefrontReel.objects.create(**validated_data, product_id=product_id)
+
+    def update(self, instance, validated_data):
+        product_id = validated_data.pop("product_id", serializers.empty)
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        if product_id is not serializers.empty:
+            instance.product_id = product_id
+        instance.save()
+        return instance
 
 
 class StorefrontReelReorderSerializer(serializers.Serializer):

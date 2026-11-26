@@ -150,12 +150,15 @@ export default function OrdersPage() {
               Search orders
             </label>
             <div className="relative min-w-0 flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex w-9 items-center justify-center text-muted">
+                <FaIcon icon="search" className="h-3.5 w-3.5" />
+              </span>
               <input
                 id="order-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Number, email, name, phone"
-                className="min-h-11 w-full rounded-control border border-line bg-canvas py-2 pr-3 pl-3 text-sm"
+                className="min-h-11 w-full rounded-control border border-line bg-canvas py-2 pr-3 pl-9 text-sm"
               />
             </div>
             <button
@@ -201,6 +204,7 @@ export default function OrdersPage() {
               isLoading={packagingLoading}
               onClick={openBulkPackaging}
             >
+              <FaIcon icon="templates" className="mr-1.5 h-3.5 w-3.5" />
               Packaging documents ({selected.size})
             </Button>
           ) : null

@@ -79,7 +79,7 @@ describe('SkinQuizPage', () => {
     })
 
     await user.click(await screen.findByRole('button', { name: /add whole routine to bag/i }))
-    expect(cartValue.addItem).toHaveBeenCalledWith(11, 1)
+    expect(cartValue.addItem).toHaveBeenCalledWith(11, 1, null)
     expect(toastValue.showToast).toHaveBeenCalledWith('Your routine added to your bag (1 item).')
   })
 

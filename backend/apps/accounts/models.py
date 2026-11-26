@@ -45,8 +45,17 @@ class User(AbstractUser):
 
     objects = UserManager()
 
+    class Meta(AbstractUser.Meta):
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone"],
+                condition=~models.Q(phone=""),
+                name="unique_nonempty_user_phone",
+            )
+        ]
+
     def __str__(self):
-        return self.email
+        return self.email or self.phone or str(self.pk)
 
 
 class EmailOTP(models.Model):

@@ -8,9 +8,11 @@ import { storeService } from '../../services/storeService'
 import {
   chatStorageKey,
   clearChatMessages,
+  isAskUsMinimized,
   loadChatMessages,
   markPageNudgeSeen,
   saveChatMessages,
+  setAskUsMinimized,
   shouldShowPageNudge,
 } from '../../utils/beautyChatStorage'
 import { getErrorMessage } from '../../utils/errors'
@@ -18,10 +20,10 @@ import Button from './Button'
 import ProductImage from './ProductImage'
 
 const WELCOME_GUEST =
-  'Hi! I am Mira from Jordan Beauty Hub. Ask about COD, delivery or returns anytime. For product suggestions, please sign in or create an account first — then I can send you to the right product pages.'
+  '- Hi! I am Mira from Jordan Beauty Hub\n- Ask about COD, delivery or returns anytime\n- Sign in for product suggestions and page links'
 
 const WELCOME_MEMBER =
-  'Hi! I am Mira from Jordan Beauty Hub. Tell me what you need (skin, makeup, gift, order status) and I will help — product cards open the page; prices are on each product page.'
+  '- Hi! I am Mira from Jordan Beauty Hub\n- Tell me what you need (skin, makeup, gift, order status)\n- Product cards open the page; prices are on each product page'
 
 const LINK_RE = /\/(?:products|register|login|shop|skin-quiz|looks|cart|account|policies)(?:\/[a-z0-9-]*)*/gi
 
@@ -35,7 +37,7 @@ const GUEST_CHIPS = [
 const MEMBER_CHIPS = [
   { label: 'Brown skin makeup', message: 'I need makeup suggestions for brown / Indian skin' },
   { label: 'Glowing skin', message: 'I want a simple glowing skincare routine' },
-  { label: 'Gift idea', message: 'I need a beauty gift idea — please ask me who it is for and the occasion' },
+  { label: 'Gift idea', message: 'I need a beauty gift idea' },
   { label: 'My orders', message: 'Where is my latest order?' },
   { label: 'Get the look', message: 'Suggest a makeup look from Get the look' },
   { label: 'Skin quiz', message: 'Should I take the skin quiz?' },
@@ -54,7 +56,7 @@ function friendlyLinkLabel(path) {
   return 'open page'
 }
 
-function ChatText({ text, onNavigate }) {
+function InlineChatText({ text, onNavigate }) {
   const nodes = []
   const source = String(text)
   let lastIndex = 0
@@ -80,7 +82,56 @@ function ChatText({ text, onNavigate }) {
   if (lastIndex < source.length) {
     nodes.push(<span key={`t-${lastIndex}`}>{source.slice(lastIndex)}</span>)
   }
-  return <span className="whitespace-pre-wrap">{nodes}</span>
+  return <>{nodes}</>
+}
+
+function bulletBody(line) {
+  const trimmed = line.trim()
+  const match = trimmed.match(/^(?:[-•*]|\d+[.)])\s+(.*)$/u)
+  return match ? match[1] : trimmed
+}
+
+/** Renders Mira replies as short bullet points when the text uses "- " / "1." lines. */
+function ChatText({ text, onNavigate }) {
+  const lines = String(text)
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+  const bulletIndexes = lines
+    .map((line, index) => (/^\s*(?:[-•*]|\d+[.)])\s+\S/.test(line) ? index : -1))
+    .filter((index) => index >= 0)
+
+  if (bulletIndexes.length >= 2 || (bulletIndexes.length === 1 && lines.filter(Boolean).length <= 2)) {
+    const lead = []
+    const bullets = []
+    lines.forEach((line) => {
+      if (!line.trim()) return
+      if (/^\s*(?:[-•*]|\d+[.)])\s+\S/.test(line)) bullets.push(bulletBody(line))
+      else if (!bullets.length) lead.push(line.trim())
+      else bullets.push(line.trim())
+    })
+    return (
+      <div className="space-y-1.5">
+        {lead.length ? (
+          <p className="text-sm leading-snug">
+            <InlineChatText text={lead.join(' ')} onNavigate={onNavigate} />
+          </p>
+        ) : null}
+        <ul className="list-disc space-y-1 pl-4 text-sm leading-snug">
+          {bullets.map((item, index) => (
+            <li key={`${index}-${item.slice(0, 24)}`}>
+              <InlineChatText text={item} onNavigate={onNavigate} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  return (
+    <span className="whitespace-pre-wrap">
+      <InlineChatText text={text} onNavigate={onNavigate} />
+    </span>
+  )
 }
 
 function pathLabel(path) {
@@ -210,6 +261,7 @@ export default function BeautyChat() {
   const [chips, setChips] = useState(() => pageChips(isAuthenticated, pathname))
   const [whatsappUrl, setWhatsappUrl] = useState(null)
   const [showNudge, setShowNudge] = useState(false)
+  const [fabMinimized, setFabMinimized] = useState(() => isAskUsMinimized())
 
   useEffect(() => {
     const nextKey = chatStorageKey(isAuthenticated, user?.id)
@@ -237,9 +289,13 @@ export default function BeautyChat() {
   }, [settings?.whatsapp_number])
 
   useEffect(() => {
+    if (fabMinimized) {
+      setShowNudge(false)
+      return
+    }
     if (shouldShowPageNudge(pathname)) setShowNudge(true)
     else setShowNudge(false)
-  }, [pathname])
+  }, [pathname, fabMinimized])
 
   useEffect(() => {
     if (!open) return undefined
@@ -263,6 +319,15 @@ export default function BeautyChat() {
       markPageNudgeSeen(pathname)
       setShowNudge(false)
     }
+  }
+
+  const dismissNudge = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    markPageNudgeSeen(pathname)
+    setShowNudge(false)
+    setAskUsMinimized(true)
+    setFabMinimized(true)
   }
 
   const resetChat = () => {
@@ -371,20 +436,41 @@ export default function BeautyChat() {
   }
 
   const handleAddToBag = async (product) => {
-    await addToCart(product.default_variant_id, 1, product.name)
+    await addToCart(product.default_variant_id, 1, product.name, {
+      id: product.default_variant_id,
+      name: 'Default',
+      price: product.min_price || product.price,
+      product_name: product.name,
+      product_slug: product.slug,
+      brand_name: product.brand?.name || '',
+      image: product.primary_image?.image || product.image || null,
+      is_available: true,
+      stock_quantity: 99,
+    })
   }
 
   return (
     <div className="fixed right-3 bottom-3 z-40 flex flex-col items-end gap-2 sm:right-6 sm:bottom-6 sm:gap-3">
       {showNudge && !open && (
-        <button
-          type="button"
-          onClick={openChat}
-          className="max-w-[14rem] rounded-card border border-line bg-surface px-2.5 py-2 text-left text-[0.7rem] text-ink shadow-raised sm:max-w-[16rem] sm:px-3 sm:text-xs"
-        >
-          <span className="font-semibold text-accent">Need a hand?</span>
-          <span className="mt-0.5 block text-ink-soft">Ask Mira about this page — tap to chat.</span>
-        </button>
+        <div className="relative max-w-[14rem] rounded-card border border-line bg-surface px-2.5 py-2 text-left text-[0.7rem] text-ink shadow-raised sm:max-w-[16rem] sm:px-3 sm:text-xs">
+          <button
+            type="button"
+            onClick={dismissNudge}
+            aria-label="Dismiss tip"
+            title="Dismiss"
+            className="btn-icon absolute top-1 right-1 h-6 w-6 rounded-full text-muted hover:text-ink"
+          >
+            ×
+          </button>
+          <button
+            type="button"
+            onClick={openChat}
+            className="rounded-btn pr-5 text-left transition-colors hover:bg-cream/80"
+          >
+            <span className="font-semibold text-accent">Need a hand?</span>
+            <span className="mt-0.5 block text-ink-soft">Ask Mira about this page — tap to chat.</span>
+          </button>
+        </div>
       )}
 
       {open && (
@@ -546,21 +632,19 @@ export default function BeautyChat() {
       <button
         type="button"
         aria-expanded={open}
-        aria-label={open ? 'Close chat' : 'Ask us'}
-        title={open ? 'Close chat' : 'Ask us'}
+        aria-label={open ? 'Close chat' : fabMinimized ? 'Ask Mira' : 'Ask us'}
+        title={open ? 'Close chat' : fabMinimized ? 'Ask Mira' : 'Ask us'}
         onClick={() => (open ? closeChat() : openChat())}
-        className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-3.5 text-xs font-semibold tracking-wide text-white uppercase shadow-raised transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:h-14 sm:gap-2 sm:px-5 sm:text-sm"
+        className={`flex items-center justify-center rounded-full bg-accent font-semibold tracking-wide text-white uppercase shadow-raised transition-[colors,width,padding] hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          fabMinimized && !open
+            ? 'h-11 w-11 text-base sm:h-12 sm:w-12 sm:text-lg'
+            : 'h-11 gap-1.5 px-3.5 text-xs sm:h-14 sm:gap-2 sm:px-5 sm:text-sm'
+        }`}
       >
         <span aria-hidden="true" className="text-base leading-none sm:text-lg">
-          ✦
+          {open ? '×' : '✦'}
         </span>
-        {open ? (
-          <span aria-hidden="true" className="text-base leading-none sm:text-lg">
-            ×
-          </span>
-        ) : (
-          'Ask us'
-        )}
+        {!fabMinimized && !open ? 'Ask us' : null}
       </button>
     </div>
   )

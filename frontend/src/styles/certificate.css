@@ -1,0 +1,323 @@
+/* Certificate Management System — tokens on :root so portaled modals also resolve them */
+
+:root {
+  --cert-ivory: #f7f3ec;
+  --cert-navy: #1a2744;
+  --cert-navy-mid: #243556;
+  --cert-gold: #c4a46a;
+  --cert-gold-soft: #efe4d0;
+  --cert-ink: #1a1f2c;
+  --cert-muted: #6b7280;
+  --cert-line: #e6e0d6;
+  --cert-surface: #ffffff;
+  --cert-danger: #b42318;
+  --cert-danger-hover: #911c13;
+  --cert-success: #1f7a4d;
+  --cert-sidebar: 16.875rem;
+  --cert-sidebar-collapsed: 5rem;
+  --cert-radius: 0.875rem;
+  --cert-shadow: 0 1px 2px rgb(26 39 68 / 0.05), 0 8px 24px rgb(26 39 68 / 0.06);
+  --font-cert-display: 'Cormorant Garamond', 'Bricolage Grotesque', Georgia, serif;
+  --font-cert-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-cert-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+}
+
+.cert-shell {
+
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--cert-ivory);
+  color: var(--cert-ink);
+  font-family: var(--font-cert-sans);
+}
+
+.cert-shell .cert-sidebar {
+  width: var(--cert-sidebar);
+  height: 100%;
+  max-height: 100dvh;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--cert-navy) 0%, #121b30 100%);
+  color: #fff;
+  transition: width 200ms ease;
+}
+
+.cert-shell .cert-sidebar.is-collapsed {
+  width: var(--cert-sidebar-collapsed);
+}
+
+.cert-shell .cert-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cert-shell .cert-main__body {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.cert-shell .cert-nav-link {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  color: rgb(255 255 255 / 0.72);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.cert-shell .cert-nav-link:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
+.cert-shell .cert-nav-link.is-active {
+  background: color-mix(in srgb, var(--cert-gold) 28%, transparent);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cert-gold) 55%, transparent);
+}
+
+.cert-shell .cert-card {
+  border: 1px solid var(--cert-line);
+  border-radius: var(--cert-radius);
+  background: var(--cert-surface);
+  box-shadow: var(--cert-shadow);
+}
+
+.cert-btn-primary,
+.cert-btn-danger,
+.cert-btn-outline,
+.cert-shell .cert-btn-primary,
+.cert-shell .cert-btn-danger,
+.cert-shell .cert-btn-outline {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.625rem;
+  padding: 0 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+
+.cert-btn-primary,
+.cert-shell .cert-btn-primary {
+  border: 1px solid var(--cert-navy, #1e2a44);
+  background: var(--cert-navy, #1e2a44);
+  color: #fff;
+}
+
+.cert-btn-primary:hover,
+.cert-shell .cert-btn-primary:hover {
+  background: var(--cert-navy-mid, #2a3b5c);
+  border-color: var(--cert-navy-mid, #2a3b5c);
+}
+
+.cert-btn-primary:disabled,
+.cert-shell .cert-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cert-btn-danger,
+.cert-shell .cert-btn-danger {
+  border: 1px solid var(--cert-danger, #b42318);
+  background: var(--cert-danger, #b42318);
+  color: #fff;
+}
+
+.cert-btn-danger:hover,
+.cert-shell .cert-btn-danger:hover {
+  background: var(--cert-danger-hover, #911c13);
+  border-color: var(--cert-danger-hover, #911c13);
+}
+
+.cert-btn-danger:disabled,
+.cert-shell .cert-btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cert-btn-outline,
+.cert-shell .cert-btn-outline {
+  border: 1px solid var(--cert-line, #e5e0d8);
+  background: var(--cert-surface, #fff);
+  color: var(--cert-ink, #1a1a1a);
+}
+
+.cert-btn-outline:hover,
+.cert-shell .cert-btn-outline:hover {
+  background: var(--cert-gold-soft, #f5edd8);
+  border-color: var(--cert-navy, #1e2a44);
+  color: var(--cert-navy, #1e2a44);
+}
+
+.cert-btn-primary:active:not(:disabled),
+.cert-btn-danger:active:not(:disabled),
+.cert-btn-outline:active:not(:disabled),
+.cert-shell .cert-btn-primary:active:not(:disabled),
+.cert-shell .cert-btn-danger:active:not(:disabled),
+.cert-shell .cert-btn-outline:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cert-btn-sm,
+.cert-shell .cert-btn-sm {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.cert-icon-btn,
+.cert-shell .cert-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.cert-icon-btn--danger,
+.cert-shell .cert-icon-btn--danger {
+  color: var(--cert-danger);
+}
+
+.cert-icon-btn--danger:hover:not(:disabled),
+.cert-shell .cert-icon-btn--danger:hover:not(:disabled) {
+  background: #fdecea;
+  border-color: var(--cert-danger);
+  color: var(--cert-danger);
+}
+
+/* Standalone so portaled modals (outside .cert-shell) still get styled fields. */
+.cert-input {
+  display: block;
+  box-sizing: border-box;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid var(--cert-line, #e5e0d8);
+  border-radius: 0.625rem;
+  background: #fff;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--cert-ink, #1a1a1a);
+  line-height: 1.4;
+}
+
+.cert-input[type='datetime-local'],
+.cert-input[type='date'],
+.cert-input[type='time'],
+.cert-input[type='file'] {
+  height: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.cert-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--cert-gold, #c4a35a) 70%, transparent);
+  outline-offset: 0;
+  border-color: var(--cert-gold, #c4a35a);
+}
+
+textarea.cert-input {
+  height: auto;
+  min-height: 6rem;
+  padding: 0.55rem 0.75rem;
+  resize: vertical;
+}
+
+.cert-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.cert-field__label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cert-muted, #6b7280);
+}
+
+.cert-field__hint {
+  font-size: 0.7rem;
+  color: var(--cert-muted, #6b7280);
+}
+
+.cert-shell .cert-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cert-shell .cert-badge--issued {
+  background: #e7f5ee;
+  color: var(--cert-success);
+}
+.cert-shell .cert-badge--draft {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.cert-shell .cert-badge--revoked {
+  background: #fdecea;
+  color: var(--cert-danger);
+}
+.cert-shell .cert-badge--reissued {
+  background: var(--cert-gold-soft);
+  color: #7a5a1e;
+}
+.cert-shell .cert-badge--sent {
+  background: #e7f5ee;
+  color: var(--cert-success);
+}
+.cert-shell .cert-badge--failed {
+  background: #fdecea;
+  color: var(--cert-danger);
+}
+.cert-shell .cert-badge--pending,
+.cert-shell .cert-badge--sending,
+.cert-shell .cert-badge--running,
+.cert-shell .cert-badge--none {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.cert-shell .cert-badge--completed {
+  background: #e7f5ee;
+  color: var(--cert-success);
+}
+
+@media (max-width: 1023px) {
+  .cert-shell .cert-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    height: 100dvh;
+    transform: translateX(-105%);
+  }
+  .cert-shell .cert-sidebar.is-open {
+    transform: translateX(0);
+  }
+}

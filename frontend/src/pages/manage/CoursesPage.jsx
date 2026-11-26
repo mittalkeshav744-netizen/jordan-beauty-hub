@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import Button from '../../components/common/Button'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorMessage from '../../components/common/ErrorMessage'
 import Modal from '../../components/common/Modal'
@@ -119,6 +120,8 @@ export default function CoursesPage() {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(blankForm)
   const [saving, setSaving] = useState(false)
+  const [deletingCourse, setDeletingCourse] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const { data, isLoading, error, reload, setData } = useApi(
     () => portalService.listCourses({ page, page_size: PAGE_SIZE }),
@@ -224,16 +227,18 @@ export default function CoursesPage() {
     }
   }
 
-  const deleteCourse = async (course) => {
-    if (!window.confirm(`Delete “${course.title}”? Enrollments for this course will be removed.`)) {
-      return
-    }
+  const confirmDelete = async () => {
+    if (!deletingCourse) return
+    setIsDeleting(true)
     try {
-      await portalService.deleteCourse(course.id)
+      await portalService.deleteCourse(deletingCourse.id)
       showToast('Course deleted.', 'success')
+      setDeletingCourse(null)
       reload()
     } catch (err) {
       showToast(err.response?.data?.detail || 'Could not delete course.', 'error')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -290,24 +295,46 @@ export default function CoursesPage() {
         <>
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
-              <li key={course.id} className="overflow-hidden rounded-card border border-line bg-surface">
-                {course.cover_image ? (
-                  <img
-                    src={course.cover_image}
-                    alt=""
-                    className="h-36 w-full object-cover bg-subtle"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="flex h-36 items-center justify-center bg-cream px-4 text-center">
-                    <span className="font-display text-base font-semibold text-ink-soft">
-                      {course.title}
-                    </span>
-                  </div>
-                )}
-                <div className="space-y-3 p-4">
+              <li
+                key={course.id}
+                className="manage-panel flex flex-col overflow-hidden"
+              >
+                <div className="relative">
+                  {course.cover_image ? (
+                    <img
+                      src={course.cover_image}
+                      alt=""
+                      className="h-36 w-full object-cover bg-subtle"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-36 items-center justify-center bg-cream px-4 text-center">
+                      <span className="font-display text-base font-semibold text-ink-soft">
+                        {course.title}
+                      </span>
+                    </div>
+                  )}
+                  <span
+                    className={`absolute top-3 left-3 inline-flex items-center gap-1 rounded-control px-2 py-1 text-[0.65rem] font-semibold tracking-wide uppercase ${
+                      course.is_published ? 'bg-success-soft text-success' : 'bg-canvas text-muted'
+                    }`}
+                  >
+                    {course.is_published ? (
+                      <>
+                        <FaIcon icon="check" className="h-3 w-3" />
+                        Published
+                      </>
+                    ) : (
+                      'Draft'
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col gap-3 p-4">
                   <div>
-                    <h2 className="font-display text-lg font-semibold text-ink">{course.title}</h2>
+                    <h2 className="flex items-start gap-2 font-display text-lg font-semibold text-ink">
+                      <FaIcon icon="courses" className="mt-1 h-3.5 w-3.5 shrink-0 text-accent" />
+                      <span className="min-w-0">{course.title}</span>
+                    </h2>
                     <p className="mt-1 text-sm text-muted line-clamp-2">
                       {course.short_description || 'No short description'}
                     </p>
@@ -316,8 +343,9 @@ export default function CoursesPage() {
                     {formatPrice(course.price)} · {course.module_count || 0} modules ·{' '}
                     {course.lesson_count || 0} lessons · {course.enrollment_count || 0} enrolled
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
                     <Button type="button" variant="outline" size="sm" onClick={() => openEdit(course)}>
+                      <FaIcon icon="pen" className="mr-1.5 h-3 w-3" />
                       Edit
                     </Button>
                     <Button
@@ -326,18 +354,18 @@ export default function CoursesPage() {
                       size="sm"
                       onClick={() => togglePublished(course)}
                     >
+                      <FaIcon icon={course.is_published ? 'eye' : 'check'} className="mr-1.5 h-3 w-3" />
                       {course.is_published ? 'Unpublish' : 'Publish'}
                     </Button>
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-danger"
-                      onClick={() => deleteCourse(course)}
+                      onClick={() => setDeletingCourse(course)}
+                      className="manage-icon-btn manage-icon-btn--danger ml-auto"
+                      title={`Delete ${course.title}`}
                       aria-label={`Delete ${course.title}`}
                     >
                       <FaIcon icon="trash" className="h-3.5 w-3.5" />
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </li>
@@ -431,6 +459,7 @@ export default function CoursesPage() {
                   setForm((prev) => ({ ...prev, modules: [...prev.modules, emptyModule()] }))
                 }
               >
+                <FaIcon icon="plus" className="mr-1.5 h-3 w-3" />
                 Add module
               </Button>
             </div>
@@ -459,6 +488,7 @@ export default function CoursesPage() {
                         }))
                       }
                     >
+                      <FaIcon icon="trash" className="mr-1.5 h-3 w-3" />
                       Remove
                     </Button>
                   </div>
@@ -545,6 +575,7 @@ export default function CoursesPage() {
                             type="button"
                             variant="ghost"
                             size="sm"
+                            className="text-danger"
                             disabled={module.lessons.length <= 1}
                             onClick={() =>
                               setForm((prev) => {
@@ -559,6 +590,7 @@ export default function CoursesPage() {
                               })
                             }
                           >
+                            <FaIcon icon="trash" className="mr-1.5 h-3 w-3" />
                             Remove lesson
                           </Button>
                         </div>
@@ -581,6 +613,7 @@ export default function CoursesPage() {
                       })
                     }
                   >
+                    <FaIcon icon="plus" className="mr-1.5 h-3 w-3" />
                     Add lesson
                   </Button>
                 </li>
@@ -589,6 +622,17 @@ export default function CoursesPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingCourse)}
+        title={`Delete “${deletingCourse?.title}”?`}
+        message="Enrollments for this course will be removed. This cannot be undone."
+        confirmLabel="Delete course"
+        confirmVariant="danger"
+        isBusy={isDeleting}
+        onConfirm={confirmDelete}
+        onClose={() => !isDeleting && setDeletingCourse(null)}
+      />
     </section>
   )
 }

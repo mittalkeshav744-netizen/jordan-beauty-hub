@@ -91,6 +91,12 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
     customer_note = models.TextField(blank=True)
 
+    # Filled when the parcel is handed to a courier (Shiprocket / Delhivery / manual).
+    courier_name = models.CharField(max_length=120, blank=True)
+    tracking_number = models.CharField(max_length=120, blank=True, db_index=True)
+    tracking_url = models.URLField(max_length=500, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

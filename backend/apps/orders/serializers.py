@@ -54,6 +54,7 @@ class OrderDetailSerializer(OrderListSerializer):
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
     payment_method = serializers.CharField(source="payment.get_method_display", read_only=True)
     payment_status = serializers.CharField(source="payment.get_status_display", read_only=True)
+    payment_method_code = serializers.CharField(source="payment.method", read_only=True)
     can_cancel = serializers.BooleanField(source="can_be_cancelled_by_customer", read_only=True)
     shipping_address = serializers.SerializerMethodField()
 
@@ -68,8 +69,13 @@ class OrderDetailSerializer(OrderListSerializer):
             "items",
             "status_history",
             "payment_method",
+            "payment_method_code",
             "payment_status",
             "can_cancel",
+            "courier_name",
+            "tracking_number",
+            "tracking_url",
+            "shipped_at",
         ]
 
     def get_shipping_address(self, order):
@@ -94,3 +100,8 @@ class CheckoutSerializer(serializers.Serializer):
     idempotency_key = serializers.UUIDField()
     coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
     customer_note = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    payment_method = serializers.ChoiceField(
+        choices=["cod", "razorpay"],
+        required=False,
+        default="cod",
+    )

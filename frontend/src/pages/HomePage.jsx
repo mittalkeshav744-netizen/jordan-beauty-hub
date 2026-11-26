@@ -7,14 +7,13 @@ import Skeleton from '../components/common/Skeleton'
 import HeroSection from '../components/home/HeroSection'
 import LooksShowcase from '../components/home/LooksShowcase'
 import Marquee from '../components/home/Marquee'
-import CuratedHomeShelf from '../components/home/CuratedHomeShelf'
 import PersonalizedShelf from '../components/home/PersonalizedShelf'
 import QuizPromo from '../components/home/QuizPromo'
 import ShopByBudget from '../components/home/ShopByBudget'
 import ShopByConcern from '../components/home/ShopByConcern'
 import VideoReels from '../components/home/VideoReels'
 import CategoryCard from '../components/products/CategoryCard'
-import ProductGrid from '../components/products/ProductGrid'
+import ProductScrollRow from '../components/products/ProductScrollRow'
 import { useApi } from '../hooks/useApi'
 import { useStorefront } from '../hooks/useStorefront'
 import { catalogService } from '../services/catalogService'
@@ -30,7 +29,7 @@ const DEFAULT_SECTIONS = [
   { id: 'categories', enabled: true },
   { id: 'quiz', enabled: true },
   { id: 'recommendations', enabled: true },
-  { id: 'bestsellers', enabled: true },
+  { id: 'bestsellers', enabled: false },
   { id: 'reels', enabled: true },
   { id: 'concerns', enabled: true },
   { id: 'looks', enabled: true },
@@ -50,7 +49,7 @@ function CategoryStrip() {
   }
   return (
     <div className="space-y-4">
-      <ul className="scrollbar-hide -mx-3 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-3 pb-2 sm:-mx-6 sm:gap-4 sm:px-6 sm:pb-3 lg:mx-0 lg:grid lg:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] lg:overflow-visible lg:px-0">
+      <ul className="scrollbar-hide -mx-3 flex min-w-0 snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-3 pb-2 sm:-mx-6 sm:gap-4 sm:px-6 sm:pb-3 lg:mx-0 lg:grid lg:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] lg:overflow-x-clip lg:px-0">
         {isLoading
           ? Array.from({ length: FEATURED_CATEGORY_LIMIT }, (_, index) => (
               <li key={index} className="w-28 shrink-0 sm:w-36 lg:w-auto">
@@ -105,20 +104,73 @@ function ProductSection({ title, params, viewAllLink }) {
       )}
       {!error && (isLoading || data.results.length > 0) && (
         <Reveal>
-          <ProductGrid products={data?.results ?? []} isLoading={isLoading} skeletonCount={4} />
+          <ProductScrollRow
+            products={data?.results ?? []}
+            isLoading={isLoading}
+            skeletonCount={4}
+            ariaLabel={title}
+          />
         </Reveal>
       )}
     </section>
   )
 }
 
+function BenefitIcon({ kind }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '1.8',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    className: 'h-6 w-6',
+    'aria-hidden': true,
+  }
+  if (kind === 'genuine') {
+    return (
+      <svg {...common}>
+        <path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6l7-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    )
+  }
+  if (kind === 'cancel') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M9 9l6 6M15 9l-6 6" />
+      </svg>
+    )
+  }
+  return (
+    <svg {...common}>
+      <rect x="3" y="7" width="13" height="10" rx="1.5" />
+      <path d="M16 10h3l2 3v4h-5v-7z" />
+      <circle cx="7.5" cy="17.5" r="1.5" />
+      <circle cx="17.5" cy="17.5" r="1.5" />
+    </svg>
+  )
+}
+
+function benefitIconKind(title, index) {
+  const label = String(title || '').toLowerCase()
+  if (/(cash|cod|delivery|pay)/.test(label)) return 'cod'
+  if (/(genuine|authentic|quality|original)/.test(label)) return 'genuine'
+  if (/(cancel|return|refund|easy)/.test(label)) return 'cancel'
+  return ['cod', 'genuine', 'cancel'][index % 3]
+}
+
 function BenefitsStrip({ benefits }) {
   const items = benefits?.length ? benefits : DEFAULT_BENEFITS
   return (
     <section className="bg-cream">
-      <ul className="page-container grid gap-4 section-y sm:grid-cols-3 sm:gap-6">
+      <ul className="page-container grid gap-5 section-y sm:grid-cols-3 sm:gap-6">
         {items.map((benefit, index) => (
           <Reveal as="li" key={`${benefit.title}-${index}`} delay={100 * index} className="text-center">
+            <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <BenefitIcon kind={benefitIconKind(benefit.title, index)} />
+            </span>
             <p className="text-xs font-semibold tracking-widest uppercase sm:text-sm">{benefit.title}</p>
             <p className="mt-1 text-sm text-muted">{benefit.text}</p>
           </Reveal>
@@ -170,15 +222,8 @@ export default function HomePage() {
                 </div>
               )
             case 'bestsellers':
-              return (
-                <div
-                  key={section.id}
-                  data-manage-edit="/manage/products?focus=products"
-                  data-manage-label="Bestsellers / featured products"
-                >
-                  <CuratedHomeShelf />
-                </div>
-              )
+              // Removed: duplicate of PersonalizedShelf; keep id so older storefront configs stay valid.
+              return null
             case 'reels':
               return (
                 <div

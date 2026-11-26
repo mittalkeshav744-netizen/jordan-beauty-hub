@@ -9,11 +9,13 @@ import Button from '../components/common/Button'
 import EmptyState from '../components/common/EmptyState'
 import ErrorMessage from '../components/common/ErrorMessage'
 import { PageLoader } from '../components/common/Spinner'
+import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
 import { useToast } from '../hooks/useToast'
 import { getErrorMessage } from '../utils/errors'
 
 export default function CartPage() {
+  const { isAuthenticated } = useAuth()
   const { cart, isLoading, error, refreshCart, updateItem, removeItem } = useCart()
   const { showToast } = useToast()
   const [updatingItemId, setUpdatingItemId] = useState(null)
@@ -53,33 +55,45 @@ export default function CartPage() {
         />
       )}
       {cart.items.length > 0 && (
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
-          <ul className="divide-y divide-line border-y border-line">
-            {cart.items.map((item) => (
-              <CartItem
-                key={item.id}
-                item={item}
-                isUpdating={updatingItemId === item.id}
-                onQuantityChange={handleQuantityChange}
-                onRemove={handleRemove}
-              />
-            ))}
-          </ul>
-          <div className="lg:sticky lg:top-40 lg:self-start">
-            <OrderSummary totals={{ subtotal: cart.subtotal }}>
-              <FreeShippingProgress subtotal={cart.subtotal} />
-              <p className="text-xs text-muted">Coupons and shipping are applied at checkout.</p>
-              {hasProblem && (
-                <p className="text-xs font-medium text-danger">Please fix the highlighted items before checking out.</p>
-              )}
-              <Button to={hasProblem ? undefined : '/checkout'} disabled={hasProblem} variant="accent" fullWidth size="lg">
-                Checkout
-              </Button>
-            </OrderSummary>
+        <div className="space-y-8">
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
+            <ul className="divide-y divide-line border-y border-line">
+              {cart.items.map((item) => (
+                <CartItem
+                  key={item.id}
+                  item={item}
+                  isUpdating={updatingItemId === item.id}
+                  onQuantityChange={handleQuantityChange}
+                  onRemove={handleRemove}
+                />
+              ))}
+            </ul>
+            <aside className="lg:sticky lg:top-28 lg:z-10 lg:self-start">
+              <OrderSummary totals={{ subtotal: cart.subtotal }}>
+                <FreeShippingProgress subtotal={cart.subtotal} />
+                <p className="text-xs text-muted">Coupons and shipping are applied at checkout.</p>
+                {hasProblem && (
+                  <p className="text-xs font-medium text-danger">Please fix the highlighted items before checking out.</p>
+                )}
+                {!isAuthenticated ? (
+                  <p className="text-xs text-muted">
+                    You can keep shopping as a guest. Sign in is only needed to place the order.
+                  </p>
+                ) : null}
+                <Button
+                  to={hasProblem ? undefined : isAuthenticated ? '/checkout' : '/login'}
+                  state={isAuthenticated || hasProblem ? undefined : { from: '/checkout' }}
+                  disabled={hasProblem}
+                  variant="accent"
+                  fullWidth
+                  size="lg"
+                >
+                  {isAuthenticated ? 'Checkout' : 'Sign in to checkout'}
+                </Button>
+              </OrderSummary>
+            </aside>
           </div>
-          <div className="lg:col-span-2">
-            <CartUpsellShelf subtotal={cart.subtotal} />
-          </div>
+          <CartUpsellShelf subtotal={cart.subtotal} />
         </div>
       )}
     </div>

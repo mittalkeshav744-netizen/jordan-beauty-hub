@@ -1,31 +1,53 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import EmptyState from '../common/EmptyState'
 import ErrorMessage from '../common/ErrorMessage'
 import Reveal from '../common/Reveal'
-import ProductGrid from '../products/ProductGrid'
-import { useApi } from '../../hooks/useApi'
+import ProductScrollRow from '../products/ProductScrollRow'
 import { catalogService } from '../../services/catalogService'
 
 /**
- * Home bestsellers shelf (featured products).
- * Owner “home picks” curation was removed from Manage — shop always uses featured.
+ * Home bestsellers shelf — owner homepage picks when set, otherwise featured products.
  */
 export default function CuratedHomeShelf() {
-  const {
-    data: featured,
-    isLoading,
-    error,
-    reload,
-  } = useApi(() => catalogService.getProducts({ page_size: 8, featured: 'true' }), [])
+  const [products, setProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [usingPicks, setUsingPicks] = useState(false)
 
-  const products = featured?.results || []
+  const load = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const picks = await catalogService.getHomepagePicks()
+      const pickList = picks?.results || picks?.products || (Array.isArray(picks) ? picks : [])
+      if (pickList.length > 0) {
+        setProducts(pickList)
+        setUsingPicks(true)
+        return
+      }
+      const featured = await catalogService.getProducts({ page_size: 8, featured: 'true' })
+      setProducts(featured?.results || [])
+      setUsingPicks(false)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
 
   return (
     <section className="page-container section-y space-y-4 sm:space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="mb-1 text-xs font-semibold tracking-widest text-accent uppercase">Featured</p>
+          <p className="mb-1 text-xs font-semibold tracking-widest text-accent uppercase">
+            {usingPicks ? 'Picked for you' : 'Featured'}
+          </p>
           <h2 className="section-title">Bestsellers</h2>
         </div>
         <Link
@@ -35,13 +57,18 @@ export default function CuratedHomeShelf() {
           View all
         </Link>
       </div>
-      {error && <ErrorMessage error={error} onRetry={reload} />}
+      {error && <ErrorMessage error={error} onRetry={load} />}
       {!error && !isLoading && products.length === 0 && (
         <EmptyState title="Coming soon" message="New products are on their way." />
       )}
       {!error && (isLoading || products.length > 0) && (
         <Reveal>
-          <ProductGrid products={products} isLoading={isLoading} skeletonCount={4} />
+          <ProductScrollRow
+            products={products}
+            isLoading={isLoading}
+            skeletonCount={4}
+            ariaLabel="Bestsellers"
+          />
         </Reveal>
       )}
     </section>

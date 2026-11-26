@@ -46,6 +46,21 @@ class StorefrontConfigAdmin(admin.ModelAdmin):
                 )
             },
         ),
+        (
+            "Footer",
+            {
+                "fields": (
+                    "footer_tagline",
+                    "footer_shop_title",
+                    "footer_shop_links",
+                    "footer_include_categories",
+                    "footer_account_title",
+                    "footer_account_links",
+                    "footer_help_title",
+                    "footer_help_links",
+                )
+            },
+        ),
         ("Homepage sections", {"fields": ("sections_order", "updated_at")}),
     )
     readonly_fields = ["updated_at"]
@@ -59,7 +74,8 @@ class StorefrontConfigAdmin(admin.ModelAdmin):
 
 @admin.register(StorefrontReel)
 class StorefrontReelAdmin(admin.ModelAdmin):
-    list_display = ["title", "is_active", "sort_order", "link_url", "updated_at"]
+    list_display = ["title", "is_active", "sort_order", "link_type", "link_url", "product", "updated_at"]
     list_editable = ["is_active", "sort_order"]
-    list_filter = ["is_active"]
-    search_fields = ["title", "link_url"]
+    list_filter = ["is_active", "link_type"]
+    search_fields = ["title", "link_url", "product__name"]
+    raw_id_fields = ["product"]

@@ -12,6 +12,8 @@ export const portalService = {
   getOrder: (number) => list(`orders/${number}/`),
   updateOrderStatus: (number, data) =>
     apiClient.post(`/portal/orders/${number}/status/`, data).then((response) => response.data),
+  setOrderShipment: (number, data) =>
+    apiClient.post(`/portal/orders/${number}/shipment/`, data).then((response) => response.data),
 
   listProducts: (params) => list('products/', params),
   getProduct: (id) => list(`products/${id}/`),
@@ -108,11 +110,19 @@ export const portalService = {
 
   getStorefrontConfig: () => list('storefront/config/'),
   updateStorefrontConfig: (data) => {
+    const needsMultipart =
+      data.hero_video_file instanceof File || data.store_logo instanceof File
     let body
-    if (data.hero_video_file instanceof File) {
+    if (needsMultipart) {
       body = new FormData()
       Object.entries(data).forEach(([key, value]) => {
-        if (value == null || key === 'id' || key === 'updated_at' || key === 'hero_video_file_url') {
+        if (
+          value == null ||
+          key === 'id' ||
+          key === 'updated_at' ||
+          key === 'hero_video_file_url' ||
+          key === 'store_logo_url'
+        ) {
           return
         }
         if (typeof value === 'boolean') {
@@ -128,6 +138,8 @@ export const portalService = {
         hero_video_file: _file,
         hero_video_src: _src,
         hero_video_file_url: _url,
+        store_logo: _logo,
+        store_logo_url: _logoUrl,
         id: _id,
         updated_at: _updated,
         ...rest
@@ -142,7 +154,10 @@ export const portalService = {
     if (data.video_file instanceof File) {
       body = new FormData()
       Object.entries(data).forEach(([key, value]) => {
-        if (value == null) return
+        if (value == null) {
+          if (key === 'product_id') body.append(key, '')
+          return
+        }
         if (typeof value === 'boolean') body.append(key, value ? 'true' : 'false')
         else body.append(key, value)
       })
@@ -157,7 +172,10 @@ export const portalService = {
     if (data.video_file instanceof File) {
       body = new FormData()
       Object.entries(data).forEach(([key, value]) => {
-        if (value == null) return
+        if (value == null) {
+          if (key === 'product_id') body.append(key, '')
+          return
+        }
         if (typeof value === 'boolean') body.append(key, value ? 'true' : 'false')
         else body.append(key, value)
       })
@@ -172,11 +190,5 @@ export const portalService = {
   reorderStorefrontReels: (orderedIds) =>
     apiClient
       .post('/portal/storefront/reels/reorder/', { ordered_ids: orderedIds })
-      .then((response) => response.data),
-
-  getHomepagePicks: () => list('homepage-picks/'),
-  saveHomepagePicks: (productIds) =>
-    apiClient
-      .put('/portal/homepage-picks/', { product_ids: productIds })
       .then((response) => response.data),
 }

@@ -24,10 +24,10 @@ import {
 } from '../../utils/storefrontForm'
 
 const TABS = [
-  { id: 'hero', label: 'Hero & Banner' },
-  { id: 'reels', label: 'Watch & Shop Reels' },
-  { id: 'sections', label: 'Sections & Ordering' },
-  { id: 'content', label: 'Ticker & Trust Badges' },
+  { id: 'hero', label: 'Hero & Banner', icon: 'storefront' },
+  { id: 'reels', label: 'Watch & Shop Reels', icon: 'video' },
+  { id: 'sections', label: 'Sections & Ordering', icon: 'sliders' },
+  { id: 'content', label: 'Ticker & Trust Badges', icon: 'shield' },
 ]
 
 function emptyReelForm() {
@@ -363,12 +363,13 @@ export default function StorefrontPage() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap border-b-2 py-3 px-1 text-sm font-semibold transition-colors ${
+              className={`inline-flex items-center gap-2 whitespace-nowrap border-b-2 py-3 px-1 text-sm font-semibold transition-colors ${
                 activeTab === tab.id
                   ? 'border-accent text-accent'
                   : 'border-transparent text-muted hover:border-line hover:text-ink'
               }`}
             >
+              <FaIcon icon={tab.icon} className="h-3.5 w-3.5" />
               {tab.label}
             </button>
           ))}
@@ -485,10 +486,11 @@ export default function StorefrontPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveRotatingLine(idx)}
-                      className="hover:text-danger focus:outline-none"
+                      className="inline-flex items-center hover:text-danger focus:outline-none"
                       title="Remove line"
+                      aria-label={`Remove ${line}`}
                     >
-                      ✕
+                      <FaIcon icon="xmark" className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
@@ -692,7 +694,8 @@ export default function StorefrontPage() {
               </p>
             </div>
             <Button type="button" onClick={handleOpenAddReel}>
-              + Add Video Reel
+              <FaIcon icon="plus" className="mr-1.5 h-3.5 w-3.5" />
+              Add Video Reel
             </Button>
           </div>
 
@@ -708,6 +711,7 @@ export default function StorefrontPage() {
               message="Add your first short video reel to show on the homepage watch & shop strip."
               action={
                 <Button type="button" onClick={handleOpenAddReel}>
+                  <FaIcon icon="plus" className="mr-1.5 h-3.5 w-3.5" />
                   Add video reel
                 </Button>
               }
@@ -763,19 +767,21 @@ export default function StorefrontPage() {
                           type="button"
                           disabled={index === 0}
                           onClick={() => handleMoveReel(index, -1)}
-                          className="h-7 w-7 rounded-control border border-line bg-surface text-xs font-bold disabled:opacity-30 hover:bg-subtle"
+                          className="manage-icon-btn disabled:opacity-30"
                           title="Move left"
+                          aria-label="Move left"
                         >
-                          ←
+                          <FaIcon icon="chevronLeft" className="h-3 w-3" />
                         </button>
                         <button
                           type="button"
                           disabled={index === reelsData.length - 1}
                           onClick={() => handleMoveReel(index, 1)}
-                          className="h-7 w-7 rounded-control border border-line bg-surface text-xs font-bold disabled:opacity-30 hover:bg-subtle"
+                          className="manage-icon-btn disabled:opacity-30"
                           title="Move right"
+                          aria-label="Move right"
                         >
-                          →
+                          <FaIcon icon="chevronRight" className="h-3 w-3" />
                         </button>
                       </div>
                       <div className="flex gap-1">
@@ -784,7 +790,7 @@ export default function StorefrontPage() {
                           onClick={() => handleOpenEditReel(reel)}
                           aria-label="Edit reel"
                           title="Edit"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-btn border border-line bg-surface text-ink hover:bg-subtle"
+                          className="manage-icon-btn"
                         >
                           <FaIcon icon="pen" className="h-3 w-3" />
                         </button>
@@ -793,7 +799,7 @@ export default function StorefrontPage() {
                           onClick={() => setDeletingReel(reel)}
                           aria-label="Delete reel"
                           title="Delete reel"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-btn border border-line bg-surface text-danger hover:bg-danger-soft"
+                          className="manage-icon-btn manage-icon-btn--danger"
                         >
                           <FaIcon icon="trash" className="h-3 w-3" />
                         </button>
@@ -859,24 +865,26 @@ export default function StorefrontPage() {
                     </label>
 
                     {/* Move Controls */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <button
                         type="button"
                         disabled={index === 0}
                         onClick={() => handleMoveSection(index, -1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-control border border-line bg-surface text-xs font-bold disabled:opacity-30 hover:bg-subtle"
+                        className="manage-icon-btn disabled:opacity-30"
                         title="Move Up"
+                        aria-label={`Move ${sectionKey} up`}
                       >
-                        ↑
+                        <FaIcon icon="up" className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         disabled={index === configForm.sections_order.length - 1}
                         onClick={() => handleMoveSection(index, 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-control border border-line bg-surface text-xs font-bold disabled:opacity-30 hover:bg-subtle"
+                        className="manage-icon-btn disabled:opacity-30"
                         title="Move Down"
+                        aria-label={`Move ${sectionKey} down`}
                       >
-                        ↓
+                        <FaIcon icon="down" className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -911,9 +919,11 @@ export default function StorefrontPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveMarqueeItem(idx)}
-                      className="text-muted hover:text-danger focus:outline-none"
+                      className="inline-flex items-center text-muted hover:text-danger focus:outline-none"
+                      title="Remove item"
+                      aria-label={`Remove ${item}`}
                     >
-                      ✕
+                      <FaIcon icon="xmark" className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
@@ -1035,7 +1045,8 @@ export default function StorefrontPage() {
                 </p>
               </div>
               <Button type="button" variant="outline" onClick={handleAddBudgetTile}>
-                + Add tile
+                <FaIcon icon="plus" className="mr-1.5 h-3.5 w-3.5" />
+                Add tile
               </Button>
             </div>
 
@@ -1084,10 +1095,11 @@ export default function StorefrontPage() {
                   <button
                     type="button"
                     onClick={() => handleRemoveBudgetTile(idx)}
-                    className="h-8 w-8 justify-self-end rounded-control text-xs text-danger hover:bg-danger-soft sm:mb-0.5"
+                    className="manage-icon-btn manage-icon-btn--danger justify-self-end sm:mb-0.5"
                     title="Remove tile"
+                    aria-label="Remove tile"
                   >
-                    ✕
+                    <FaIcon icon="xmark" className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
@@ -1108,7 +1120,8 @@ export default function StorefrontPage() {
                 <p className="text-xs text-muted">Value proposition cards near the bottom of the homepage.</p>
               </div>
               <Button type="button" variant="outline" onClick={handleAddBenefit}>
-                + Add Benefit
+                <FaIcon icon="plus" className="mr-1.5 h-3.5 w-3.5" />
+                Add Benefit
               </Button>
             </div>
 
@@ -1145,10 +1158,11 @@ export default function StorefrontPage() {
                   <button
                     type="button"
                     onClick={() => handleRemoveBenefit(idx)}
-                    className="self-end sm:self-center mt-2 sm:mt-4 h-7 w-7 rounded-control text-xs text-danger hover:bg-danger-soft"
+                    className="manage-icon-btn manage-icon-btn--danger self-end sm:self-center mt-2 sm:mt-4"
                     title="Remove benefit"
+                    aria-label="Remove benefit"
                   >
-                    ✕
+                    <FaIcon icon="xmark" className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}

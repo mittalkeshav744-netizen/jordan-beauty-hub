@@ -88,21 +88,26 @@ export default function CustomersPage() {
                   onClick={() => openCustomer(customer.id)}
                   className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left hover:bg-subtle"
                 >
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold break-all">
-                      {customer.email}
-                      {customer.is_staff ? (
-                        <span className="rounded-control bg-accent-soft px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-accent uppercase">
-                          Staff
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'No name'}
-                      {customer.phone ? ` · ${customer.phone}` : ''}
-                      {' · joined '}
-                      {formatDate(customer.date_joined)}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-accent-soft text-berry">
+                      <FaIcon icon="customers" className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold break-all">
+                        {customer.email}
+                        {customer.is_staff ? (
+                          <span className="rounded-control bg-accent-soft px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-accent uppercase">
+                            Staff
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'No name'}
+                        {customer.phone ? ` · ${customer.phone}` : ''}
+                        {' · joined '}
+                        {formatDate(customer.date_joined)}
+                      </p>
+                    </div>
                   </div>
                   <span className="flex items-center gap-2 text-sm font-semibold">
                     {customer.order_count} orders

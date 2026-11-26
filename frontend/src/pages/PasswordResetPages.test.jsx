@@ -54,9 +54,9 @@ describe('ResetPasswordPage', () => {
     expect(authService.confirmPasswordReset).not.toHaveBeenCalled()
   })
 
-  it('saves the new password from the link and goes to sign in', async () => {
+  it('saves the new password from the link and offers sign in', async () => {
     authService.confirmPasswordReset.mockResolvedValue({ detail: 'Your password has been changed. Please sign in.' })
-    const { toastValue } = renderReset()
+    renderReset()
 
     await userEvent.type(screen.getByLabelText(/^new password/i), 'Str0ng-pass-phrase!')
     await userEvent.type(screen.getByLabelText(/confirm new password/i), 'Str0ng-pass-phrase!')
@@ -67,7 +67,7 @@ describe('ResetPasswordPage', () => {
       token: 'abc-123',
       new_password: 'Str0ng-pass-phrase!',
     })
-    expect(await screen.findByText('Sign in page')).toBeInTheDocument()
-    expect(toastValue.showToast).toHaveBeenCalledWith('Your password has been changed. Please sign in.')
+    expect(await screen.findByRole('heading', { name: /password updated/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', '/login')
   })
 })

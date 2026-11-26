@@ -145,7 +145,14 @@ def record_status(order, from_status, to_status, user=None, note=""):
     )
 
 
-def place_order(user, address, idempotency_key, coupon_code="", customer_note=""):
+def place_order(
+    user,
+    address,
+    idempotency_key,
+    coupon_code="",
+    customer_note="",
+    payment_method=Payment.Method.CASH_ON_DELIVERY,
+):
     """
     Turn the user's cart into an order. Returns (order, created).
 
@@ -156,7 +163,17 @@ def place_order(user, address, idempotency_key, coupon_code="", customer_note=""
     if existing:
         return existing, False
     try:
-        return _create_order(user, address, idempotency_key, coupon_code, customer_note), True
+        return (
+            _create_order(
+                user,
+                address,
+                idempotency_key,
+                coupon_code,
+                customer_note,
+                payment_method=payment_method,
+            ),
+            True,
+        )
     except IntegrityError:
         existing = Order.objects.filter(user=user, idempotency_key=idempotency_key).first()
         if existing:
@@ -165,7 +182,14 @@ def place_order(user, address, idempotency_key, coupon_code="", customer_note=""
 
 
 @transaction.atomic
-def _create_order(user, address, idempotency_key, coupon_code, customer_note):
+def _create_order(
+    user,
+    address,
+    idempotency_key,
+    coupon_code,
+    customer_note,
+    payment_method=Payment.Method.CASH_ON_DELIVERY,
+):
     cart = get_cart(user)
     cart_items = list(cart.items.all())
     if not cart_items:
@@ -244,11 +268,18 @@ def _create_order(user, address, idempotency_key, coupon_code, customer_note):
             coupon=quote.coupon, user=user, order=order, discount_amount=quote.discount_total
         )
 
+    method = payment_method or Payment.Method.CASH_ON_DELIVERY
+    if method == Payment.Method.RAZORPAY:
+        from apps.payments.services import razorpay_enabled
+
+        if not razorpay_enabled():
+            method = Payment.Method.CASH_ON_DELIVERY
     Payment.objects.create(
         order=order,
-        method=Payment.Method.CASH_ON_DELIVERY,
+        method=method,
         amount=order.grand_total,
         currency=order.currency,
+        status=Payment.Status.PENDING,
     )
     record_status(order, "", Order.Status.PENDING, user, "Order placed")
     cart.items.all().delete()

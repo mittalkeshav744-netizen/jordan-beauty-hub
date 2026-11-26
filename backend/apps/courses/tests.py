@@ -87,6 +87,23 @@ class CoursePublicApiTests(APITestCase):
         self.assertEqual(cart.data.get("items"), [])
         self.assertEqual(cart.data.get("item_count"), 0)
 
+    def test_enroll_syncs_certificate_student_roster(self):
+        from apps.certificates.models import CertificateEnrollment, CertificateStudent
+
+        self.client.force_authenticate(self.user)
+        response = self.client.post(f"/api/courses/{self.course.slug}/enroll/")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        student = CertificateStudent.objects.get(user=self.user)
+        self.assertEqual(student.email.lower(), self.user.email.lower())
+        self.assertTrue(
+            CertificateEnrollment.objects.filter(
+                student=student,
+                course=self.course,
+                status=CertificateEnrollment.Status.ENROLLED,
+            ).exists()
+        )
+
     def test_mine_lists_enrollments(self):
         enroll_user(self.user, self.course)
         self.client.force_authenticate(self.user)

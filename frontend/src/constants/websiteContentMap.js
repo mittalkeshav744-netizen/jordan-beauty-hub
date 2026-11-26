@@ -8,6 +8,8 @@ export const WEBSITE_CONTENT_TARGETS = [
   { path: '/manage/storefront?focus=sections', label: 'Homepage section order' },
   { path: '/manage/storefront?focus=benefits', label: 'Trust / benefits strip' },
   { path: '/manage/storefront?focus=budget', label: 'Shop by budget tiles' },
+  { path: '/manage/storefront?focus=footer', label: 'Footer copy & links' },
+  { path: '/manage/storefront?focus=policies', label: 'Policies & logo' },
   { path: '/manage/categories?focus=categories', label: 'Shop by category' },
   { path: '/manage/products?focus=products', label: 'Products & new arrivals' },
   { path: '/manage/looks?focus=looks', label: 'Get the look' },
@@ -24,4 +26,7 @@ export const STOREFRONT_FOCUS_TAB = {
   quiz: 'content',
   benefits: 'content',
   budget: 'content',
+  footer: 'content',
+  policies: 'policies',
+  logo: 'policies',
 }

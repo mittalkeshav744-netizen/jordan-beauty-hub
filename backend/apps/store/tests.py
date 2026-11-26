@@ -21,16 +21,15 @@ class StoreSettingsTests(APITestCase):
     def test_public_settings_are_readable_without_login(self):
         response = self.client.get("/api/store/settings/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            response.data,
-            {
-                "currency": "INR",
-                "shipping_flat_fee": "49.00",
-                "free_shipping_threshold": "499.00",
-                "whatsapp_number": "919876543210",
-                "chat_enabled": False,
-            },
-        )
+        self.assertEqual(response.data["currency"], "INR")
+        self.assertEqual(response.data["shipping_flat_fee"], "49.00")
+        self.assertEqual(response.data["free_shipping_threshold"], "499.00")
+        self.assertEqual(response.data["whatsapp_number"], "919876543210")
+        self.assertFalse(response.data["chat_enabled"])
+        self.assertTrue(response.data["cod_enabled"])
+        self.assertFalse(response.data["razorpay_enabled"])
+        self.assertEqual(response.data["razorpay_key_id"], "")
+        self.assertIn("delivery_tracking_enabled", response.data)
 
     @override_settings(GOOGLE_GEMINI_API_KEY="test-key")
     def test_chat_enabled_when_gemini_key_is_set(self):
@@ -51,9 +50,31 @@ class StorefrontPublicTests(APITestCase):
         self.assertEqual(response.data["config"]["hero_title"], "Public hero")
         titles = [row["title"] for row in response.data["reels"]]
         self.assertEqual(titles, ["Live"])
+        self.assertEqual(response.data["reels"][0]["link_type"], "path")
+        self.assertEqual(response.data["reels"][0]["link_url"], "/shop")
         self.assertGreaterEqual(len(response.data["config"]["budget_tiles"]), 1)
         self.assertIn("amount", response.data["config"]["budget_tiles"][0])
         self.assertIn("to", response.data["config"]["budget_tiles"][0])
+
+    def test_public_reel_product_link_resolves_to_product_path(self):
+        from apps.test_factories import make_product
+
+        product = make_product(name="Reel Serum")
+        StorefrontReel.objects.create(
+            title="Serum drop",
+            link_type=StorefrontReel.LinkType.PRODUCT,
+            product=product,
+            link_url="",
+            is_active=True,
+            sort_order=0,
+        )
+
+        response = self.client.get("/api/store/storefront/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        reel = response.data["reels"][0]
+        self.assertEqual(reel["link_type"], "product")
+        self.assertEqual(reel["link_url"], f"/products/{product.slug}")
+        self.assertEqual(reel["product_id"], product.pk)
 
 
 class BeautyChatToolTests(APITestCase):
@@ -107,7 +128,7 @@ class BeautyChatTests(APITestCase):
     def test_policy_faq_works_without_gemini_key(self):
         response = self.post_chat({"message": "What is your return policy?"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("Opened beauty products", response.data["reply"])
+        self.assertIn("opened beauty products", response.data["reply"].lower())
 
     @override_settings(GOOGLE_GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-flash-latest")
     @patch("apps.store.chat.gemini.urllib.request.urlopen")

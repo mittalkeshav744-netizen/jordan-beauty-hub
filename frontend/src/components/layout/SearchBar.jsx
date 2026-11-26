@@ -117,7 +117,7 @@ export default function SearchBar({ className = '', onSearch, id, autoFocus = fa
       <button
         type="submit"
         aria-label="Search"
-        className="absolute inset-y-0 left-0 flex w-11 items-center justify-center rounded-l-control text-ink-soft hover:text-accent"
+        className="btn-icon absolute inset-y-0 left-0 w-11 rounded-l-control text-ink-soft hover:text-accent"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12.5" cy="12.5" r="6.5" />

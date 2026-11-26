@@ -5,6 +5,7 @@ import Breadcrumbs from '../components/common/Breadcrumbs'
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
 import Skeleton from '../components/common/Skeleton'
+import SuccessPanel from '../components/common/SuccessPanel'
 import { useApi } from '../hooks/useApi'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
@@ -68,6 +69,7 @@ export default function CourseDetailPage() {
   const { user } = useAuth()
   const { showToast } = useToast()
   const [enrolling, setEnrolling] = useState(false)
+  const [justEnrolled, setJustEnrolled] = useState(false)
   const { data: course, isLoading, error, reload, setData } = useApi(
     () => coursesService.get(slug),
     [slug],
@@ -75,14 +77,14 @@ export default function CourseDetailPage() {
 
   const enroll = async () => {
     if (!user) {
-      navigate(`/login?next=/courses/${slug}`)
+      navigate('/login', { state: { from: `/courses/${slug}`, intent: 'course' } })
       return
     }
     setEnrolling(true)
     try {
       const result = await coursesService.enroll(slug)
       setData(result.course)
-      showToast('You are enrolled. Start learning below.', 'success')
+      setJustEnrolled(true)
     } catch (err) {
       showToast(err.response?.data?.detail || 'Could not enroll.', 'error')
     } finally {
@@ -123,10 +125,31 @@ export default function CourseDetailPage() {
             <img
               src={course.cover_image}
               alt=""
-              className="mb-6 aspect-[16/9] w-full rounded-card object-cover bg-subtle"
+              className="mb-6 aspect-[16/9] w-full rounded-card object-cover bg-subtle shadow-card"
             />
-          ) : null}
-          <h1 className="section-title">{course.title}</h1>
+          ) : (
+            <div className="mb-6 flex aspect-[16/9] items-end rounded-card bg-linear-to-br from-cream via-accent-soft/50 to-berry/20 px-6 pb-6 shadow-card">
+              <p className="font-display text-3xl font-semibold text-ink sm:text-4xl">{course.title}</p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {course.category ? (
+              <span className="rounded-full bg-ink px-3 py-1 text-[0.65rem] font-semibold tracking-wide text-white uppercase">
+                {course.category}
+              </span>
+            ) : null}
+            {course.duration_text ? (
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-[0.65rem] font-semibold tracking-wide text-ink-soft uppercase">
+                {course.duration_text}
+              </span>
+            ) : null}
+            {course.code ? (
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-[0.65rem] font-semibold tracking-wide text-muted uppercase">
+                {course.code}
+              </span>
+            ) : null}
+          </div>
+          <h1 className="mt-4 section-title">{course.title}</h1>
           {course.short_description ? (
             <p className="mt-2 text-base text-ink-soft">{course.short_description}</p>
           ) : null}
@@ -134,7 +157,7 @@ export default function CourseDetailPage() {
             <p className="mt-4 whitespace-pre-wrap text-sm text-muted">{course.description}</p>
           ) : null}
 
-          <div className="mt-8 space-y-4">
+          <div id="course-curriculum" className="mt-8 space-y-4">
             <h2 className="font-display text-xl font-semibold text-ink">Curriculum</h2>
             {(course.modules || []).map((module) => (
               <section key={module.id} className="rounded-card border border-line bg-surface p-4">
@@ -172,12 +195,36 @@ export default function CourseDetailPage() {
             {course.lesson_count || 0} lessons
           </p>
           <p className="mt-3 text-sm text-ink-soft">
-            Enrollment is separate from your shopping cart. Product checkout is unchanged.
+            Enroll to unlock the full curriculum. Online payment for courses will be available soon.
           </p>
           {course.enrolled ? (
-            <p className="mt-4 rounded-control bg-success-soft px-3 py-2 text-sm font-medium text-success">
-              You are enrolled — scroll to learn.
-            </p>
+            <div className="mt-4">
+              <SuccessPanel
+                compact
+                headingId="course-enrolled-heading"
+                title={
+                  justEnrolled
+                    ? 'Congratulations — you are enrolled!'
+                    : 'You are enrolled'
+                }
+                message="Scroll down to open your lessons and start learning."
+                actions={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    fullWidth
+                    onClick={() =>
+                      document.getElementById('course-curriculum')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      })
+                    }
+                  >
+                    View curriculum
+                  </Button>
+                }
+              />
+            </div>
           ) : (
             <Button type="button" className="mt-4 w-full" isLoading={enrolling} onClick={enroll}>
               {user ? 'Enroll now' : 'Sign in to enroll'}

@@ -9,6 +9,7 @@ import FormField from '../forms/FormField'
 import FaIcon from './FaIcon'
 import ProductOptionsEditor from './ProductOptionsEditor'
 import ProductPhotos from './ProductPhotos'
+import ShadeColorField from './ShadeColorField'
 import {
   editFormFromProduct,
   emptyCreateForm,
@@ -139,6 +140,7 @@ export default function ProductEditorModal({
         category_id: Number(createForm.category_id),
         short_description: createForm.short_description,
         variant_name: createForm.variant_name || 'Default',
+        shade_hex: createForm.shade_hex || '',
         price: createForm.price,
         compare_at_price: createForm.compare_at_price || null,
         stock_quantity: Number(createForm.stock_quantity || 0),
@@ -423,6 +425,13 @@ export default function ProductEditorModal({
                     placeholder="Shade or size"
                     hint="You can add more options after creating."
                     onChange={(event) => setCreateForm({ ...createForm, variant_name: event.target.value })}
+                  />
+                  <ShadeColorField
+                    id="create-shade-hex"
+                    label="Shade colour"
+                    value={createForm.shade_hex}
+                    onChange={(shade_hex) => setCreateForm({ ...createForm, shade_hex })}
+                    error={createErrors.shade_hex}
                   />
                   <FormField
                     label="Selling price (₹)"

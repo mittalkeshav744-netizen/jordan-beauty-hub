@@ -101,11 +101,12 @@ export default function HeroSection({ config }) {
       data-manage-edit="/manage/storefront?focus=hero"
       data-manage-label="Hero & homepage banner"
     >
-      <div aria-hidden="true" className="absolute inset-0 -z-20">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 max-md:hidden">
         <span className="absolute -top-24 -left-24 h-80 w-80 animate-blob rounded-full bg-accent/40 blur-3xl" />
         <span className="absolute top-1/3 right-0 h-96 w-96 animate-blob rounded-full bg-tile-orchid-deep/40 blur-3xl [animation-delay:-5s]" />
         <span className="absolute -bottom-32 left-1/3 h-72 w-72 animate-blob rounded-full bg-tile-peach-deep/30 blur-3xl [animation-delay:-10s]" />
       </div>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 bg-ink md:hidden" />
 
       <div className="page-container grid items-center gap-6 py-8 sm:gap-10 sm:py-16 md:grid-cols-2 lg:py-20">
         <div className="space-y-4 sm:space-y-6">
@@ -143,8 +144,9 @@ export default function HeroSection({ config }) {
               src={videoSrc}
               loopEnd={loopEnd}
               poster={HERO_VIDEO.poster}
+              priority
               style={{ '--tilt': '2deg' }}
-              className="h-full w-full md:aspect-[9/16] md:h-auto md:max-w-[17rem] md:animate-float md:rounded-card md:shadow-raised md:ring-4 md:ring-white/10 lg:max-w-[19rem]"
+              className="h-full w-full md:aspect-[9/16] md:h-auto md:max-w-[17rem] md:animate-float md:rounded-card md:shadow-raised md:ring-4 md:ring-white/10 lg:max-w-[19rem] motion-reduce:md:animate-none"
             />
             <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-ink/90 via-ink/60 to-ink/45 md:hidden" />
           </div>

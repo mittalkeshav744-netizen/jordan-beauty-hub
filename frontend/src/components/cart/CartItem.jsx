@@ -1,15 +1,11 @@
-import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { formatPrice } from '../../utils/format'
-import Button from '../common/Button'
-import Modal from '../common/Modal'
 import ProductImage from '../common/ProductImage'
 import QuantitySelector from '../common/QuantitySelector'
 
 export default function CartItem({ item, onQuantityChange, onRemove, isUpdating = false }) {
   const { variant } = item
-  const [stockNotice, setStockNotice] = useState(false)
   const stockLeft = variant.stock_quantity
   const maxQuantity = variant.is_available ? Math.max(stockLeft, 1) : Math.max(item.quantity, 1)
   const exceedsStock = item.quantity > stockLeft
@@ -57,9 +53,10 @@ export default function CartItem({ item, onQuantityChange, onRemove, isUpdating 
           />
           <button
             type="button"
+            className="btn-text-danger text-sm disabled:opacity-50"
             onClick={() => onRemove(item)}
             disabled={isUpdating}
-            title={`Only ${stockLeft} left in stock`}
+            aria-label={`Remove ${variant.product_name} from bag`}
           >
             Remove
           </button>

@@ -64,3 +64,23 @@ export function markPageNudgeSeen(pathname) {
     // ignore
   }
 }
+
+const FAB_MINIMIZED_KEY = `${PREFIX}:fab-minimized`
+
+/** When true, the Ask us chip collapses to a star-only control. */
+export function isAskUsMinimized() {
+  try {
+    return window.localStorage.getItem(FAB_MINIMIZED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setAskUsMinimized(minimized) {
+  try {
+    if (minimized) window.localStorage.setItem(FAB_MINIMIZED_KEY, '1')
+    else window.localStorage.removeItem(FAB_MINIMIZED_KEY)
+  } catch {
+    // ignore
+  }
+}

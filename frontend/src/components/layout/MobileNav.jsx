@@ -39,7 +39,7 @@ export default function MobileNav({ isOpen, onClose }) {
             </Link>
           </li>
           <li>
-            <Link to="/account/wishlist" onClick={onClose} className={linkClasses}>
+            <Link to="/wishlist" onClick={onClose} className={linkClasses}>
               Wishlist
             </Link>
           </li>

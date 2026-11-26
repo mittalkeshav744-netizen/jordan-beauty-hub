@@ -8,7 +8,6 @@ import Pagination from '../../components/common/Pagination'
 import Skeleton from '../../components/common/Skeleton'
 import FaIcon from '../../components/manage/FaIcon'
 import ManagePageHeader from '../../components/manage/ManagePageHeader'
-import ManageToolbar from '../../components/manage/ManageToolbar'
 import FormField from '../../components/forms/FormField'
 import { useApi } from '../../hooks/useApi'
 import { useToast } from '../../hooks/useToast'
@@ -170,9 +169,6 @@ export default function CouponsPage() {
       <ManagePageHeader
         title="Coupons"
         description="Create and activate discount codes for checkout."
-      />
-
-      <ManageToolbar
         actions={
           <Button type="button" onClick={openCreate}>
             <FaIcon icon="plus" className="mr-2 h-3.5 w-3.5" />
@@ -287,10 +283,19 @@ export default function CouponsPage() {
             {results.map((coupon) => (
               <li key={coupon.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-                    <FaIcon icon="coupons" className="h-3.5 w-3.5 text-accent" />
-                    {coupon.code}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="flex items-center gap-2 text-sm font-semibold tracking-wide text-ink">
+                      <FaIcon icon="coupons" className="h-3.5 w-3.5 text-accent" />
+                      {coupon.code}
+                    </p>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide uppercase ${
+                        coupon.is_active ? 'bg-success-soft text-success' : 'bg-cream text-muted'
+                      }`}
+                    >
+                      {coupon.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs text-muted">
                     {coupon.discount_type === 'percentage'
                       ? `${coupon.value}% off`
@@ -306,10 +311,13 @@ export default function CouponsPage() {
                 <button
                   type="button"
                   onClick={() => toggleActive(coupon)}
-                  className={`min-h-10 rounded-control px-3 text-xs font-semibold ${
-                    coupon.is_active ? 'border border-line hover:bg-subtle' : 'bg-ink text-white'
+                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-btn px-3 text-xs font-semibold tracking-[0.04em] transition-colors ${
+                    coupon.is_active
+                      ? 'border border-line hover:bg-subtle'
+                      : 'bg-ink text-white hover:bg-ink-soft'
                   }`}
                 >
+                  <FaIcon icon={coupon.is_active ? 'ban' : 'check'} className="h-3 w-3" />
                   {coupon.is_active ? 'Deactivate' : 'Activate'}
                 </button>
               </li>

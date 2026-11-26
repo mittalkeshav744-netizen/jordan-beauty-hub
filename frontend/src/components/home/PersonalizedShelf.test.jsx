@@ -39,7 +39,8 @@ describe('PersonalizedShelf', () => {
     renderWithProviders(<PersonalizedShelf />)
 
     expect(await screen.findByText('Bestsellers & favourites')).toBeInTheDocument()
-    expect(screen.getByText('Start the quiz')).toBeInTheDocument()
+    expect(screen.queryByText('Want matches for your skin?')).not.toBeInTheDocument()
+    expect(screen.getByText('Take the skin quiz')).toBeInTheDocument()
     expect(screen.getByText('Niacinamide Balancing Serum')).toBeInTheDocument()
     expect(catalogService.getRecommendations).toHaveBeenCalledWith({ context: 'home' })
     expect(screen.queryByText('oily skin')).not.toBeInTheDocument()

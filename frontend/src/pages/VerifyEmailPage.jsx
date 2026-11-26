@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { Link, useLocation } from 'react-router'
 
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
+import SuccessPanel from '../components/common/SuccessPanel'
 import FormField from '../components/forms/FormField'
 import AuthCard from '../components/layout/AuthCard'
 import { useAuth } from '../hooks/useAuth'
@@ -21,13 +22,14 @@ function validateVerify(values) {
 
 export default function VerifyEmailPage() {
   const location = useLocation()
-  const navigate = useNavigate()
   const { showToast } = useToast()
   const { user, applyUser } = useAuth()
   const presetEmail = location.state?.email || user?.email || ''
   const [isResending, setIsResending] = useState(false)
   const [resendError, setResendError] = useState('')
+  const [verified, setVerified] = useState(false)
   const form = useForm({ email: presetEmail, otp: '' }, validateVerify)
+  const continueTo = location.state?.from || '/account'
 
   const submit = async ({ email, otp }) => {
     const response = await authService.verifyEmail({ email: email.trim(), otp: otp.trim() })
@@ -35,8 +37,7 @@ export default function VerifyEmailPage() {
       if (response.id && applyUser) applyUser(response)
       else if (user && applyUser) applyUser({ ...user, email_verified: true })
     }
-    showToast(response.detail || 'Email verified.')
-    navigate(location.state?.from || '/account', { replace: true })
+    setVerified(true)
   }
 
   const resend = async () => {
@@ -55,6 +56,29 @@ export default function VerifyEmailPage() {
     } finally {
       setIsResending(false)
     }
+  }
+
+  if (verified) {
+    return (
+      <div className="page-container flex justify-center py-6 sm:py-12">
+        <SuccessPanel
+          className="w-full"
+          headingId="email-verified-heading"
+          title="Congratulations — email verified!"
+          message="Your account is ready. You can continue shopping and placing orders."
+          actions={
+            <>
+              <Button to={continueTo} variant="accent" fullWidth size="lg">
+                Continue
+              </Button>
+              <Button to="/shop" variant="outline" fullWidth>
+                Browse shop
+              </Button>
+            </>
+          }
+        />
+      </div>
+    )
   }
 
   return (

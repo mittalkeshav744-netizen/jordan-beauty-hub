@@ -9,13 +9,18 @@ import { useAuth } from '../hooks/useAuth'
 export default function StaffRoute() {
   const { user, isAuthenticated, isCheckingSession } = useAuth()
   const location = useLocation()
+  const isPublicCertVerify =
+    location.pathname === '/certificate/verify' ||
+    location.pathname.startsWith('/certificate/verify/')
 
   if (isCheckingSession) return <PageLoader />
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
+  const from = location.pathname + location.search
+  // Authenticity checks (QR / serial) stay public; CertificateLayout strips staff chrome.
+  if (!isAuthenticated && !isPublicCertVerify) {
+    return <Navigate to="/manage/login" replace state={{ from }} />
   }
-  if (!user?.is_staff) {
-    return <Navigate to="/" replace />
+  if (isAuthenticated && !user?.is_staff && !isPublicCertVerify) {
+    return <Navigate to="/manage/login" replace state={{ from }} />
   }
   return (
     <RouteErrorFallback>

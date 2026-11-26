@@ -2,12 +2,36 @@ import { Link, useParams } from 'react-router'
 
 import Breadcrumbs from '../components/common/Breadcrumbs'
 import { POLICIES, POLICY_LAST_UPDATED, POLICY_LINKS } from '../constants/policies'
+import { useStorefront } from '../hooks/useStorefront'
 import NotFoundPage from './NotFoundPage'
+
+function policyLinksFromConfig(policies) {
+  if (!policies || typeof policies !== 'object') return POLICY_LINKS
+  const entries = Object.entries(policies)
+  if (entries.length === 0) return POLICY_LINKS
+  return entries.map(([slug, policy]) => ({
+    label: policy?.title || slug,
+    to: `/policies/${slug}`,
+  }))
+}
 
 export default function PolicyPage() {
   const { slug } = useParams()
-  const policy = Object.hasOwn(POLICIES, slug) ? POLICIES[slug] : null
+  const { config } = useStorefront()
+  const remotePolicies = config?.policies
+  const policy =
+    (remotePolicies && Object.hasOwn(remotePolicies, slug) ? remotePolicies[slug] : null) ||
+    (Object.hasOwn(POLICIES, slug) ? POLICIES[slug] : null)
   if (!policy) return <NotFoundPage />
+
+  const links = policyLinksFromConfig(remotePolicies)
+  const lastUpdated = config?.updated_at
+    ? new Date(config.updated_at).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : POLICY_LAST_UPDATED
 
   return (
     <div className="page-container pb-10">
@@ -16,7 +40,7 @@ export default function PolicyPage() {
         <nav aria-label="Store policies" className="order-last lg:order-first">
           <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Policies</h2>
           <ul className="mt-2 space-y-1">
-            {POLICY_LINKS.map((link) => (
+            {links.map((link) => (
               <li key={link.to}>
                 <Link
                   to={link.to}
@@ -32,13 +56,13 @@ export default function PolicyPage() {
         <article className="max-w-3xl space-y-6">
           <header className="space-y-2">
             <h1 className="section-title">{policy.title}</h1>
-            <p className="text-xs text-muted">Last updated {POLICY_LAST_UPDATED}</p>
+            <p className="text-xs text-muted">Last updated {lastUpdated}</p>
             <p className="prose-text">{policy.intro}</p>
           </header>
-          {policy.sections.map((section) => (
+          {(policy.sections || []).map((section) => (
             <section key={section.heading} className="space-y-2">
               <h2 className="text-base font-semibold">{section.heading}</h2>
-              {section.paragraphs.map((paragraph) => (
+              {(section.paragraphs || []).map((paragraph) => (
                 <p key={paragraph} className="prose-text">
                   {paragraph}
                 </p>

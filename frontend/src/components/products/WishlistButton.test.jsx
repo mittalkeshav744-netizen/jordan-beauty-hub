@@ -8,13 +8,13 @@ const PRODUCT = { id: 7, name: 'Matte Velvet Lipstick' }
 const SIGNED_IN = { isAuthenticated: true, user: { id: 1 } }
 
 describe('WishlistButton', () => {
-  it('asks signed-out visitors to sign in instead of saving', async () => {
+  it('lets signed-out visitors save to the local wishlist', async () => {
     const { wishlistValue, toastValue } = renderWithProviders(<WishlistButton product={PRODUCT} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Save Matte Velvet Lipstick to wishlist' }))
 
-    expect(wishlistValue.addToWishlist).not.toHaveBeenCalled()
-    expect(toastValue.showToast).toHaveBeenCalledWith('Please sign in to save products to your wishlist.', 'info')
+    expect(wishlistValue.addToWishlist).toHaveBeenCalledWith(7)
+    expect(toastValue.showToast).toHaveBeenCalledWith('Matte Velvet Lipstick saved to your wishlist.')
   })
 
   it('saves an unsaved product', async () => {

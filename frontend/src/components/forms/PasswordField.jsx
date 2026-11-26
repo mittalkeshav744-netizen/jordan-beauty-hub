@@ -38,7 +38,7 @@ export default function PasswordField({
         <button
           type="button"
           onClick={() => setVisible((current) => !current)}
-          className="absolute top-1/2 right-2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-btn text-muted transition-colors hover:bg-subtle hover:text-ink"
+          className="btn-icon absolute top-1/2 right-2 h-9 w-9 -translate-y-1/2 text-muted hover:text-ink"
           aria-label={visible ? 'Hide characters' : 'Show characters'}
           title={visible ? 'Hide characters' : 'Show characters'}
         >

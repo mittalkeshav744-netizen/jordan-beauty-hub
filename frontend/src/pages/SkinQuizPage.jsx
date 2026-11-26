@@ -238,11 +238,7 @@ export default function SkinQuizPage() {
             onChoose={choose(ANSWER_KEYS[currentStep])}
           />
           {currentStep > 0 && (
-            <button
-              type="button"
-              onClick={goBack}
-              className="mt-6 py-2 text-sm font-semibold text-ink-soft underline-offset-2 hover:text-accent hover:underline"
-            >
+            <button type="button" onClick={goBack} className="btn-text mt-6 text-sm">
               ← Back
             </button>
           )}

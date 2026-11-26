@@ -117,7 +117,7 @@ export default function PackagingDocumentsModal({ isOpen, onClose, orders = [] }
               onClick={() => setTab(item.id)}
               className={`min-h-10 rounded-btn px-3 text-xs font-semibold tracking-wide uppercase transition-colors ${
                 tab === item.id
-                  ? 'bg-ink text-white'
+                  ? 'bg-ink text-white hover:bg-ink-soft'
                   : 'border border-line bg-surface text-ink hover:bg-subtle'
               }`}
             >

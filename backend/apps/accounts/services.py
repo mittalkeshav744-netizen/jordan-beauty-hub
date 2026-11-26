@@ -9,6 +9,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from apps.catalog.models import Concern, SkinType
 
+from .firebase_auth import FirebaseAuthError, normalize_phone
 from .mail import send_store_email
 from .models import EmailOTP, UserBeautyProfile
 from .otp import OTPError, create_and_send_otp, verify_otp
@@ -17,6 +18,7 @@ User = get_user_model()
 
 NO_CONCERN_SLUG = "none"
 ANY_BUDGET_VALUE = "any"
+PHONE_LOCAL_EMAIL_DOMAIN = "users.jordanbeauty.local"
 
 
 class PasswordResetError(Exception):
@@ -29,6 +31,51 @@ class BeautyProfileError(Exception):
 
 class EmailVerifyError(Exception):
     pass
+
+
+def phone_placeholder_email(phone: str) -> str:
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    return f"phone.{digits}@{PHONE_LOCAL_EMAIL_DOMAIN}"
+
+
+def get_or_create_user_for_phone(phone: str):
+    """
+    Find or create a shopper account keyed by a verified E.164 phone number.
+
+    New phone-only accounts get an unusable password and a placeholder email so
+    they fit the existing email-required User model while still signing in via
+    Firebase OTP.
+    """
+    phone = normalize_phone(phone)
+    user = User.objects.filter(phone=phone).first()
+    if user is not None:
+        return user, False
+
+    email = phone_placeholder_email(phone)
+    existing = User.objects.filter(email__iexact=email).first()
+    if existing is not None:
+        if existing.phone != phone:
+            existing.phone = phone
+            existing.save(update_fields=["phone"])
+        return existing, False
+
+    user = User(
+        email=email,
+        phone=phone,
+        first_name="",
+        last_name="",
+        email_verified=True,
+    )
+    user.set_unusable_password()
+    try:
+        user.save()
+    except Exception as error:
+        # Race: another request created the same phone/email.
+        raced = User.objects.filter(phone=phone).first() or User.objects.filter(email__iexact=email).first()
+        if raced is None:
+            raise FirebaseAuthError("Could not create your account. Please try again.") from error
+        return raced, False
+    return user, True
 
 
 def save_beauty_profile(

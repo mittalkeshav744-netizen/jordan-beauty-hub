@@ -4,6 +4,7 @@ import CheckoutSteps from '../components/cart/CheckoutSteps'
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
 import { PageLoader } from '../components/common/Spinner'
+import SuccessPanel from '../components/common/SuccessPanel'
 import { useApi } from '../hooks/useApi'
 import { orderService } from '../services/orderService'
 import { formatPrice } from '../utils/format'
@@ -24,36 +25,49 @@ export default function OrderConfirmedPage() {
   }
 
   const address = order.shipping_address
+  const methodCode = (order.payment_method_code || '').toLowerCase()
+  const paidOnline = methodCode === 'razorpay' && order.payment_status === 'paid'
+  const isCod = methodCode !== 'razorpay'
 
   return (
     <div className="page-container py-6 sm:py-8">
       <CheckoutSteps current={2} />
-      <section
-        aria-labelledby="order-confirmed-heading"
-        className="mx-auto max-w-xl space-y-6 rounded-card border border-line p-5 text-center shadow-card sm:p-8"
+      <SuccessPanel
+        headingId="order-confirmed-heading"
+        title={
+          paidOnline ? 'Congratulations — payment received!' : 'Congratulations — order placed!'
+        }
+        message={
+          <>
+            Order <strong className="break-all text-ink">{order.number}</strong> is confirmed.
+          </>
+        }
+        actions={
+          <>
+            <Button to={`/account/orders/${order.number}`} variant="outline">
+              View order details
+            </Button>
+            <Button to="/shop" variant="accent">
+              Continue shopping
+            </Button>
+          </>
+        }
       >
-        <span
-          aria-hidden="true"
-          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-2xl text-success"
-        >
-          ✓
-        </span>
-        <div className="space-y-2">
-          <h1 id="order-confirmed-heading" className="section-title">
-            Thank you for your order!
-          </h1>
-          <p className="text-sm text-muted">
-            Order <strong className="break-all text-ink">{order.number}</strong> has been placed.
-          </p>
-        </div>
         <dl className="space-y-2 rounded-card bg-cream p-4 text-left text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-ink-soft">Items</dt>
             <dd>{order.item_count}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-ink-soft">Pay on delivery</dt>
+            <dt className="text-ink-soft">{isCod && !paidOnline ? 'Pay on delivery' : 'Amount'}</dt>
             <dd className="font-semibold">{formatPrice(order.grand_total)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-soft">Payment</dt>
+            <dd className="text-right capitalize">
+              {order.payment_method || '—'}
+              {order.payment_status ? ` · ${order.payment_status}` : ''}
+            </dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="shrink-0 text-ink-soft">Deliver to</dt>
@@ -63,17 +77,11 @@ export default function OrderConfirmedPage() {
           </div>
         </dl>
         <p className="text-sm text-muted">
-          Keep the amount ready in cash when your order arrives. You can follow its progress under My orders.
+          {paidOnline
+            ? 'Your online payment was received. You can follow delivery progress under My orders.'
+            : 'Keep the amount ready in cash when your order arrives. You can follow its progress under My orders.'}
         </p>
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button to={`/account/orders/${order.number}`} variant="outline">
-            View order details
-          </Button>
-          <Button to="/shop" variant="accent">
-            Continue shopping
-          </Button>
-        </div>
-      </section>
+      </SuccessPanel>
     </div>
   )
 }

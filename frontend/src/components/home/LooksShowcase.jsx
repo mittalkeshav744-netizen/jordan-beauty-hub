@@ -32,7 +32,7 @@ export default function LooksShowcase() {
           </Link>
         </div>
         {error && <ErrorMessage error={error} onRetry={reload} />}
-        <ul className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        <ul className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-7">
           {isLoading
             ? Array.from({ length: SHOWCASE_SIZE }, (_, index) => (
                 <li key={index}>
@@ -40,7 +40,7 @@ export default function LooksShowcase() {
                 </li>
               ))
             : (looks ?? []).slice(0, SHOWCASE_SIZE).map((look, index) => (
-                <Reveal as="li" key={look.slug} delay={100 * index}>
+                <Reveal as="li" key={look.slug} delay={100 * index} className="min-w-0">
                   <LookCard look={look} />
                 </Reveal>
               ))}

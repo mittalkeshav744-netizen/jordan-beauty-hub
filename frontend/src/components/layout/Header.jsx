@@ -11,8 +11,7 @@ import MobileNav from './MobileNav'
 import { HEART_PATH } from '../products/WishlistButton'
 import SearchBar from './SearchBar'
 
-const ICON_BUTTON_CLASSES =
-  'relative h-10 w-10 shrink-0 items-center justify-center rounded-btn transition-colors hover:bg-subtle sm:h-11 sm:w-11'
+const ICON_BUTTON_CLASSES = 'btn-icon relative h-10 w-10 sm:h-11 sm:w-11'
 
 function Icon({ children, strokeWidth = 1.8 }) {
   return (
@@ -110,7 +109,7 @@ export default function Header() {
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
             </IconLink>
-            <IconLink to="/account/wishlist" label="Wishlist" badge={wishlistCount} className="hidden sm:flex">
+            <IconLink to="/wishlist" label="Wishlist" badge={wishlistCount} className="hidden sm:flex">
               <path d={HEART_PATH} strokeLinejoin="round" />
             </IconLink>
             <IconLink to="/cart" label="Bag" badge={cart.item_count}>

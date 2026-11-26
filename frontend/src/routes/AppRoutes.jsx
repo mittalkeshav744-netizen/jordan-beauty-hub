@@ -1,5 +1,5 @@
 import { lazy } from 'react'
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
 
 import MainLayout from '../layouts/MainLayout'
 import HomePage from '../pages/HomePage'
@@ -31,6 +31,7 @@ const CourseDetailPage = lazy(() => import('../pages/CourseDetailPage'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
 const ManageLayout = lazy(() => import('../layouts/ManageLayout'))
+const ManageLoginPage = lazy(() => import('../pages/manage/ManageLoginPage'))
 const ManageDashboardPage = lazy(() => import('../pages/manage/DashboardPage'))
 const ManageOrdersPage = lazy(() => import('../pages/manage/OrdersPage'))
 const ManageProductsPage = lazy(() => import('../pages/manage/ProductsPage'))
@@ -46,9 +47,27 @@ const ManageCategoriesPage = lazy(() => import('../pages/manage/CategoriesPage')
 const ManageStorefrontPage = lazy(() => import('../pages/manage/StorefrontPage'))
 const ManageSettingsPage = lazy(() => import('../pages/manage/SettingsPage'))
 
+const CertificateLayout = lazy(() => import('../layouts/CertificateLayout'))
+const CertDashboardPage = lazy(() => import('../pages/certificate/DashboardPage'))
+const CertCoursesPage = lazy(() => import('../pages/certificate/CoursesPage'))
+const CertStudentsPage = lazy(() => import('../pages/certificate/StudentsPage'))
+const CertGroupsPage = lazy(() => import('../pages/certificate/GroupsPage'))
+const CertTemplatesPage = lazy(() => import('../pages/certificate/TemplatesPage'))
+const CertTemplateEditorPage = lazy(() => import('../pages/certificate/TemplateEditorPage'))
+const CertGeneratorPage = lazy(() => import('../pages/certificate/GeneratorPage'))
+const CertIssuedPage = lazy(() => import('../pages/certificate/IssuedPage'))
+const CertIssuedDetailPage = lazy(() => import('../pages/certificate/IssuedDetailPage'))
+const CertEmailCenterPage = lazy(() => import('../pages/certificate/EmailCenterPage'))
+const CertJobsPage = lazy(() => import('../pages/certificate/JobsPage'))
+const CertReportsPage = lazy(() => import('../pages/certificate/ReportsPage'))
+const CertSettingsPage = lazy(() => import('../pages/certificate/SettingsPage'))
+const CertVerifyPage = lazy(() => import('../pages/certificate/VerifyPage'))
+
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="manage/login" element={<ManageLoginPage />} />
+
       <Route element={<StaffRoute />}>
         <Route path="manage" element={<ManageLayout />}>
           <Route index element={<ManageDashboardPage />} />
@@ -67,6 +86,26 @@ export default function AppRoutes() {
           <Route path="newsletter" element={<ManageNewsletterPage />} />
           <Route path="settings" element={<ManageSettingsPage />} />
         </Route>
+
+        <Route path="certificate" element={<CertificateLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<CertDashboardPage />} />
+          <Route path="courses" element={<CertCoursesPage />} />
+          <Route path="students" element={<CertStudentsPage />} />
+          <Route path="groups" element={<CertGroupsPage />} />
+          <Route path="templates" element={<CertTemplatesPage />} />
+          <Route path="templates/create" element={<CertTemplateEditorPage />} />
+          <Route path="templates/:id/edit" element={<CertTemplateEditorPage />} />
+          <Route path="generator" element={<CertGeneratorPage />} />
+          <Route path="issued" element={<CertIssuedPage />} />
+          <Route path="issued/:id" element={<CertIssuedDetailPage />} />
+          <Route path="verify" element={<CertVerifyPage />} />
+          <Route path="verify/:certificateId" element={<CertVerifyPage />} />
+          <Route path="email-center" element={<CertEmailCenterPage />} />
+          <Route path="jobs" element={<CertJobsPage />} />
+          <Route path="reports" element={<CertReportsPage />} />
+          <Route path="settings" element={<CertSettingsPage />} />
+        </Route>
       </Route>
 
       <Route element={<MainLayout />}>
@@ -84,9 +123,10 @@ export default function AppRoutes() {
         <Route path="looks/:slug" element={<LookDetailPage />} />
         <Route path="courses" element={<CoursesPage />} />
         <Route path="courses/:slug" element={<CourseDetailPage />} />
+        <Route path="cart" element={<CartPage />} />
+        <Route path="wishlist" element={<WishlistPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="order-confirmed/:number" element={<OrderConfirmedPage />} />
           <Route path="account" element={<AccountLayout />}>

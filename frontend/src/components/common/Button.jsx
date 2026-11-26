@@ -10,14 +10,21 @@ const BASE_CLASSES =
 
 const VARIANT_CLASSES = {
   primary:
-    'bg-ink text-white shadow-[0_1px_2px_rgb(17_17_17/0.12)] hover:bg-ink-soft hover:shadow-[0_4px_12px_rgb(17_17_17/0.14)]',
+    'bg-ink text-white shadow-[0_1px_2px_rgb(17_17_17/0.12)] ' +
+    'hover:bg-ink-soft hover:shadow-[0_4px_12px_rgb(17_17_17/0.18)]',
   accent:
-    'bg-accent text-white shadow-[0_1px_2px_rgb(214_28_99/0.25)] hover:bg-accent-hover hover:shadow-[0_4px_14px_rgb(214_28_99/0.28)]',
+    'bg-accent text-white shadow-[0_1px_2px_rgb(214_28_99/0.25)] ' +
+    'hover:bg-accent-hover hover:shadow-[0_4px_14px_rgb(214_28_99/0.32)]',
   outline:
-    'border border-line bg-surface text-ink shadow-[0_1px_2px_rgb(17_17_17/0.04)] hover:border-ink hover:bg-ink hover:text-white',
-  ghost: 'text-ink-soft hover:bg-subtle hover:text-ink',
+    'border border-line bg-surface text-ink shadow-[0_1px_2px_rgb(17_17_17/0.04)] ' +
+    'hover:border-ink hover:bg-ink hover:text-white hover:shadow-[0_4px_12px_rgb(17_17_17/0.12)]',
+  /* Ghost must still show a clear hover (Cancel etc.) — subtle-on-white was invisible. */
+  ghost:
+    'border border-transparent text-ink-soft ' +
+    'hover:border-line hover:bg-cream hover:text-ink hover:shadow-[0_1px_3px_rgb(17_17_17/0.08)]',
   danger:
-    'border border-danger/40 bg-surface text-danger hover:border-danger hover:bg-danger hover:text-white',
+    'border border-danger/40 bg-surface text-danger ' +
+    'hover:border-danger hover:bg-danger hover:text-white hover:shadow-[0_4px_12px_rgb(180_35_24/0.2)]',
 }
 
 const SIZE_CLASSES = {

@@ -23,6 +23,15 @@ export const STOREFRONT_WRITE_FIELDS = [
   'benefits',
   'budget_tiles',
   'sections_order',
+  'footer_tagline',
+  'footer_shop_title',
+  'footer_account_title',
+  'footer_help_title',
+  'footer_shop_links',
+  'footer_account_links',
+  'footer_help_links',
+  'footer_include_categories',
+  'policies',
 ]
 
 const RECOMMENDATIONS_SECTION = {
@@ -40,6 +49,13 @@ export function buildStorefrontForm(config) {
     const insertIdx = quizIdx !== -1 ? quizIdx + 1 : 2
     sections.splice(insertIdx, 0, { ...RECOMMENDATIONS_SECTION })
   }
+  const mapLinks = (links) =>
+    (links || []).map((link) => ({
+      label: link.label || '',
+      to: link.to || '/',
+      ...(link.show ? { show: link.show } : {}),
+    }))
+
   return {
     ...config,
     hero_rotating_lines: [...(config.hero_rotating_lines || [])],
@@ -51,17 +67,31 @@ export function buildStorefrontForm(config) {
       to: tile.to || '/shop',
     })),
     sections_order: sections,
+    footer_tagline:
+      config.footer_tagline ||
+      'Makeup, skincare, haircare and body care — chosen with care and delivered across India.',
+    footer_shop_title: config.footer_shop_title || 'Shop',
+    footer_account_title: config.footer_account_title || 'My account',
+    footer_help_title: config.footer_help_title || 'Help',
+    footer_shop_links: mapLinks(config.footer_shop_links),
+    footer_account_links: mapLinks(config.footer_account_links),
+    footer_help_links: mapLinks(config.footer_help_links),
+    footer_include_categories: config.footer_include_categories !== false,
+    policies: config.policies && typeof config.policies === 'object' ? config.policies : {},
   }
 }
 
 /** Strip read-only / UI-only fields before PATCH. */
-export function storefrontWritePayload(form, heroVideoFile = null) {
+export function storefrontWritePayload(form, heroVideoFile = null, storeLogoFile = null) {
   const payload = {}
   for (const key of STOREFRONT_WRITE_FIELDS) {
     if (form[key] !== undefined) payload[key] = form[key]
   }
   if (heroVideoFile instanceof File) {
     payload.hero_video_file = heroVideoFile
+  }
+  if (storeLogoFile instanceof File) {
+    payload.store_logo = storeLogoFile
   }
   return payload
 }

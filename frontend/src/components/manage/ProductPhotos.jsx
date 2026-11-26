@@ -141,7 +141,7 @@ export default function ProductPhotos({ product, onChange, embedded = false }) {
         </h2>
       )}
       <p className={`${embedded ? '' : 'mt-1'} max-w-xl text-xs text-muted`}>
-        Drop or choose photos. Drag to reorder — the first photo is the shop card. Saved as 1200×1200 JPEG.
+        Drop or choose photos. Drag to reorder — the first photo is the shop card. Saved as 2000×2000 JPEG for sharper zoom.
       </p>
 
       <div

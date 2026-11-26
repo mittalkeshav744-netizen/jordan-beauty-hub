@@ -52,11 +52,7 @@ export default function ActiveFilters({ filters, categories, brands, onChange, o
       ))}
       {chips.length > 1 && (
         <li>
-          <button
-            type="button"
-            onClick={onClear}
-            className="min-h-9 px-2 text-xs font-semibold text-accent underline-offset-2 hover:underline"
-          >
+          <button type="button" onClick={onClear} className="btn-text min-h-9 text-xs text-accent hover:text-accent">
             Clear all
           </button>
         </li>

@@ -45,7 +45,7 @@ def suggested_replies(*, is_authenticated: bool, page_path: str = ""):
     chips = [
         {"label": "Brown skin makeup", "message": "I need makeup suggestions for brown / Indian skin"},
         {"label": "Glowing skin", "message": "I want a simple glowing skincare routine"},
-        {"label": "Gift idea", "message": "I need a beauty gift idea — please ask me who it is for and the occasion"},
+        {"label": "Gift idea", "message": "I need a beauty gift idea"},
         {"label": "My orders", "message": "Where is my latest order?"},
         {"label": "Get the look", "message": "Suggest a makeup look from Get the look"},
         {"label": "Skin quiz", "message": "Should I take the skin quiz?"},

@@ -17,7 +17,7 @@ export default function MyCoursesPage() {
       <h2 id="my-courses-title" className="font-display text-xl font-semibold text-ink">
         My courses
       </h2>
-      <p className="mt-1 text-sm text-muted">Classes you enrolled in (separate from product orders).</p>
+      <p className="mt-1 text-sm text-muted">Classes you have enrolled in.</p>
 
       {isLoading ? <Skeleton className="mt-4 h-40 w-full" /> : null}
       {error ? <ErrorMessage error={error} onRetry={reload} /> : null}

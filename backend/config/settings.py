@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "apps.store",
     "apps.looks",
     "apps.courses",
+    "apps.certificates.apps.CertificatesConfig",
     "apps.portal",
 ]
 
@@ -197,6 +198,18 @@ GOOGLE_GEMINI_API_KEY = env("GOOGLE_GEMINI_API_KEY", "")
 # Prefer a stable Flash Lite; gemini.py also falls back if this model is busy/retired.
 GEMINI_MODEL = env("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
+# Firebase Phone Auth (OTP). Browser key is public; restrict it in Google Cloud.
+# See Firebase-Phone-Auth-Integration.md. Session cookies stay the login mechanism.
+FIREBASE_PROJECT_ID = env("FIREBASE_PROJECT_ID", "kushnath-19401")
+FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", "")
+FIREBASE_WEB_API_KEY = env(
+    "FIREBASE_WEB_API_KEY",
+    "AIzaSyAvRobkSXCsNFOdogIFwKuN95nLOQIkXoI",
+)
+# Local only: ALLOW_DEMO_AUTH=1 accepts OTP DEMO_OTP / demo:+91… tokens without SMS.
+ALLOW_DEMO_AUTH = env_bool("ALLOW_DEMO_AUTH", False)
+DEMO_OTP = env("DEMO_OTP", "1234")
+
 # ---------------------------------------------------------------------------
 # CORS / CSRF / cookies
 # ---------------------------------------------------------------------------
@@ -247,6 +260,19 @@ STORE_WHATSAPP_NUMBER = "".join(ch for ch in env("STORE_WHATSAPP_NUMBER", "") if
 # Public address of the storefront; used in links inside emails.
 # Use http://127.0.0.1:8000 when Django serves the built frontend; keep :5173 for Vite.
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+# Razorpay — leave empty until you have keys; COD stays the default checkout path.
+RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = env("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_ENABLED = env_bool("RAZORPAY_ENABLED", False) or bool(
+    RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET
+)
+
+# Courier / delivery — manual tracking works without these; set when API is ready.
+DELIVERY_PROVIDER = env("DELIVERY_PROVIDER", "")  # e.g. shiprocket, delhivery, manual
+DELIVERY_API_KEY = env("DELIVERY_API_KEY", "")
+DELIVERY_API_SECRET = env("DELIVERY_API_SECRET", "")
+DELIVERY_TRACKING_ENABLED = env_bool("DELIVERY_TRACKING_ENABLED", True)
 
 # ---------------------------------------------------------------------------
 # Email (OTP verify, password reset, order confirmation)

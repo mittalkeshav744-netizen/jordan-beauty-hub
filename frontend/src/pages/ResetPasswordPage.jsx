@@ -1,11 +1,12 @@
-import { Link, useNavigate, useParams } from 'react-router'
+import { useState } from 'react'
+import { Link, useParams } from 'react-router'
 
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
+import SuccessPanel from '../components/common/SuccessPanel'
 import FormField from '../components/forms/FormField'
 import AuthCard from '../components/layout/AuthCard'
 import { useForm } from '../hooks/useForm'
-import { useToast } from '../hooks/useToast'
 import { authService } from '../services/authService'
 import { minLength, required } from '../utils/validators'
 
@@ -19,14 +20,30 @@ function validateNewPassword(values) {
 
 export default function ResetPasswordPage() {
   const { uid, token } = useParams()
-  const navigate = useNavigate()
-  const { showToast } = useToast()
+  const [done, setDone] = useState(false)
   const form = useForm({ new_password: '', confirm_password: '' }, validateNewPassword)
 
   const submit = async ({ new_password }) => {
-    const response = await authService.confirmPasswordReset({ uid, token, new_password })
-    showToast(response.detail)
-    navigate('/login', { replace: true })
+    await authService.confirmPasswordReset({ uid, token, new_password })
+    setDone(true)
+  }
+
+  if (done) {
+    return (
+      <div className="page-container flex justify-center py-6 sm:py-12">
+        <SuccessPanel
+          className="w-full"
+          headingId="password-reset-heading"
+          title="Congratulations — password updated!"
+          message="You can sign in with your new password."
+          actions={
+            <Button to="/login" variant="accent" fullWidth size="lg">
+              Sign in
+            </Button>
+          }
+        />
+      </div>
+    )
   }
 
   return (

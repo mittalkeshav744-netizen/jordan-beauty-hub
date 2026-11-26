@@ -10,9 +10,10 @@ import AddressForm from '../components/forms/AddressForm'
 import FormField from '../components/forms/FormField'
 import { useApi } from '../hooks/useApi'
 import { useCart } from '../hooks/useCart'
-import { useToast } from '../hooks/useToast'
+import { useStoreSettings } from '../hooks/useStoreSettings'
 import { addressService } from '../services/authService'
 import { orderService } from '../services/orderService'
+import { loadRazorpayScript, paymentService } from '../services/paymentService'
 import { getErrorMessage } from '../utils/errors'
 import { formatPrice } from '../utils/format'
 
@@ -68,7 +69,7 @@ function CouponForm({ appliedCode, onApply, onRemove }) {
         <span className="min-w-0">
           Coupon <strong className="break-all">{appliedCode}</strong> applied
         </span>
-        <button type="button" onClick={onRemove} className="min-h-11 shrink-0 px-2 text-xs underline">
+        <button type="button" onClick={onRemove} className="btn-text-danger min-h-11 shrink-0 text-xs">
           Remove
         </button>
       </div>
@@ -94,9 +95,68 @@ function CouponForm({ appliedCode, onApply, onRemove }) {
   )
 }
 
+function PaymentOption({ value, label, description, selected, onSelect }) {
+  return (
+    <label
+      className={`flex cursor-pointer gap-3 rounded-card border p-4 text-sm ${
+        selected ? 'border-ink bg-cream' : 'border-line hover:border-ink-soft'
+      }`}
+    >
+      <input
+        type="radio"
+        name="payment-method"
+        value={value}
+        checked={selected}
+        onChange={() => onSelect(value)}
+        className="mt-1 h-4 w-4 shrink-0 accent-accent"
+      />
+      <span className="min-w-0">
+        <span className="block font-semibold">{label}</span>
+        <span className="block text-muted">{description}</span>
+      </span>
+    </label>
+  )
+}
+
+async function openRazorpayCheckout(order) {
+  const session = await paymentService.razorpayCreate(order.number)
+  const Razorpay = await loadRazorpayScript()
+  return new Promise((resolve, reject) => {
+    const rzp = new Razorpay({
+      key: session.key_id,
+      amount: session.amount,
+      currency: session.currency || 'INR',
+      name: session.name || 'Jordan Beauty Hub',
+      description: session.description || `Order ${order.number}`,
+      order_id: session.order_id,
+      prefill: session.prefill || {},
+      handler: async (response) => {
+        try {
+          await paymentService.razorpayVerify({
+            order_number: order.number,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          })
+          resolve(order)
+        } catch (error) {
+          reject(error)
+        }
+      },
+      modal: {
+        ondismiss: () => reject(new Error('Payment cancelled. Your order is saved — you can pay later or choose COD.')),
+      },
+    })
+    rzp.on('payment.failed', (event) => {
+      reject(new Error(event?.error?.description || 'Payment failed. Please try again or choose cash on delivery.'))
+    })
+    rzp.open()
+  })
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate()
-  const { showToast } = useToast()
+  const settings = useStoreSettings()
   const { cart, isLoading: isCartLoading, clearLocalCart } = useCart()
   const addresses = useApi(() => addressService.list())
   const quote = useApi(() => orderService.quote(''))
@@ -105,15 +165,17 @@ export default function CheckoutPage() {
   const [isAddingAddress, setIsAddingAddress] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [note, setNote] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('cod')
   const [submitError, setSubmitError] = useState(null)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
-  // One key per checkout visit: a double click or network retry can't create two orders.
   const [idempotencyKey] = useState(() => crypto.randomUUID())
 
+  const razorpayEnabled = Boolean(settings?.razorpay_enabled)
   const addressList = addresses.data ?? []
   const defaultAddress = addressList.find((address) => address.is_default) ?? addressList[0]
   const selectedAddressId = chosenAddressId ?? defaultAddress?.id
   const showAddressForm = isAddingAddress || (!addresses.isLoading && addressList.length === 0)
+  const effectiveMethod = razorpayEnabled && paymentMethod === 'razorpay' ? 'razorpay' : 'cod'
 
   if (addresses.isLoading || quote.isLoading || isCartLoading) return <PageLoader label="Preparing checkout…" />
   if (cart.items.length === 0 && !isPlacingOrder) return <Navigate to="/cart" replace />
@@ -144,9 +206,12 @@ export default function CheckoutPage() {
         idempotency_key: idempotencyKey,
         coupon_code: couponCode,
         customer_note: note,
+        payment_method: effectiveMethod,
       })
+      if (effectiveMethod === 'razorpay') {
+        await openRazorpayCheckout(order)
+      }
       clearLocalCart()
-      showToast(`Order ${order.number} placed successfully!`)
       navigate(`/order-confirmed/${order.number}`, { replace: true })
     } catch (error) {
       setSubmitError(error)
@@ -196,9 +261,23 @@ export default function CheckoutPage() {
             <h2 id="payment-heading" className="text-sm font-semibold tracking-widest uppercase">
               2. Payment
             </h2>
-            <div className="rounded-card border border-ink bg-cream p-4 text-sm">
-              <p className="font-semibold">Cash on delivery</p>
-              <p className="text-muted">Pay in cash when your order is delivered.</p>
+            <div className="grid gap-3">
+              <PaymentOption
+                value="cod"
+                label="Cash on delivery"
+                description="Pay in cash when your order is delivered."
+                selected={effectiveMethod === 'cod'}
+                onSelect={setPaymentMethod}
+              />
+              {razorpayEnabled ? (
+                <PaymentOption
+                  value="razorpay"
+                  label="Pay online (Razorpay)"
+                  description="UPI, cards and net banking. Payment opens after you place the order."
+                  selected={effectiveMethod === 'razorpay'}
+                  onSelect={setPaymentMethod}
+                />
+              ) : null}
             </div>
           </section>
 
@@ -229,7 +308,7 @@ export default function CheckoutPage() {
           </section>
         </div>
 
-        <div className="min-w-0 space-y-4 lg:sticky lg:top-40 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-28 lg:z-10 lg:self-start">
           {quote.error && <ErrorMessage error={quote.error} onRetry={quote.reload} />}
           {quote.data && (
             <OrderSummary totals={quote.data}>
@@ -243,7 +322,7 @@ export default function CheckoutPage() {
                 disabled={!selectedAddressId || showAddressForm}
                 onClick={placeOrder}
               >
-                Place order
+                {effectiveMethod === 'razorpay' ? 'Place order & pay' : 'Place order'}
               </Button>
               {!selectedAddressId && <p className="text-xs text-muted">Add a delivery address to continue.</p>}
             </OrderSummary>

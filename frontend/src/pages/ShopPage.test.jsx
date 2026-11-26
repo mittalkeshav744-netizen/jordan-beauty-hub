@@ -126,12 +126,12 @@ describe('ShopPage', () => {
     expect(screen.queryByRole('checkbox', { name: 'Acne & breakouts' })).not.toBeInTheDocument()
   })
 
-  it('sends signed-out shoppers to sign in when adding to bag', async () => {
+  it('lets signed-out shoppers add to the local bag', async () => {
     catalogService.getProducts.mockResolvedValue({ count: 1, results: [PRODUCT] })
     const { cartValue, toastValue } = renderWithProviders(<ShopPage />)
 
     await userEvent.click(await screen.findByRole('button', { name: /add to bag/i }))
-    expect(cartValue.addItem).not.toHaveBeenCalled()
-    expect(toastValue.showToast).toHaveBeenCalledWith(expect.stringMatching(/sign in/i), 'info')
+    expect(cartValue.addItem).toHaveBeenCalledWith(10, 1, null)
+    expect(toastValue.showToast).toHaveBeenCalledWith(expect.stringMatching(/added to your bag/i))
   })
 })

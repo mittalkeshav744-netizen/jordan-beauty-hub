@@ -16,12 +16,14 @@ _SMTP_ATTEMPTS = 3
 _SMTP_RETRY_DELAY_SECONDS = 1.5
 
 
-def send_store_email(*, subject, to, text_body, html_body=None):
+def send_store_email(*, subject, to, text_body, html_body=None, attachments=None):
     """
     Send one transactional email. Returns True when Django accepts it.
 
     Failures are logged and return False so checkout / auth can continue;
     the console backend always succeeds in development.
+
+    attachments: optional list of (filename, content_bytes, mimetype).
     """
     recipients = [address for address in to if address]
     if not recipients:
@@ -39,6 +41,9 @@ def send_store_email(*, subject, to, text_body, html_body=None):
         )
         if html_body:
             message.attach_alternative(html_body, "text/html")
+        for item in attachments or []:
+            filename, content, mimetype = item[0], item[1], item[2] if len(item) > 2 else None
+            message.attach(filename, content, mimetype)
         try:
             sent = message.send(fail_silently=False)
             return bool(sent)

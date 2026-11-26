@@ -1,5 +1,12 @@
+import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
+import IntentChoice, {
+  AUTH_INTENT_COURSE,
+  AUTH_INTENT_SHOP,
+  intentHome,
+  intentRegisterDescription,
+} from '../components/auth/IntentChoice'
 import Button from '../components/common/Button'
 import ErrorMessage from '../components/common/ErrorMessage'
 import FormField from '../components/forms/FormField'
@@ -24,7 +31,13 @@ export default function RegisterPage() {
   const { register, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const redirectTo = location.state?.from || '/'
+  const from = location.state?.from || ''
+  const defaultIntent =
+    location.state?.intent === AUTH_INTENT_COURSE || (from && String(from).startsWith('/courses'))
+      ? AUTH_INTENT_COURSE
+      : AUTH_INTENT_SHOP
+  const [intent, setIntent] = useState(defaultIntent)
+  const redirectTo = intentHome(intent, { from })
   const form = useForm(
     { first_name: '', last_name: '', email: '', phone: '', password: '', confirm_password: '' },
     validateRegistration,
@@ -39,26 +52,29 @@ export default function RegisterPage() {
     if (newUser?.email_verification_required) {
       navigate('/verify-email', {
         replace: true,
-        state: { email: newUser.email, from: redirectTo },
+        state: { email: newUser.email, from: redirectTo, intent },
       })
       return
     }
     navigate(redirectTo, { replace: true })
   }
 
+  const loginState = { ...(location.state || {}), from, intent }
+
   return (
     <AuthShell
       heading="Create account"
-      description="Join Jordan Beauty Hub to check out faster and track your orders."
+      description={intentRegisterDescription(intent)}
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" state={location.state} className="font-semibold text-accent hover:underline">
+          <Link to="/login" state={loginState} className="font-semibold text-accent hover:underline">
             Sign in
           </Link>
         </>
       }
     >
+      <IntentChoice value={intent} onChange={setIntent} />
       <form onSubmit={form.handleSubmit(submit)} noValidate className="grid gap-4 sm:grid-cols-2">
         {form.formError ? (
           <div className="sm:col-span-2">

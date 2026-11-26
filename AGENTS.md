@@ -19,6 +19,8 @@ Read `README.md` for setup and `docs/architecture.md` for the data model.
 - Keep views thin. Business rules belong in `apps/<app>/services.py`.
 - Change stock **only** through `apps.catalog.services.change_stock()`.
 - Change order status **only** through `apps.orders.services.change_order_status()`.
+- Issue / revoke / email certificates **only** through `apps.certificates.services` (unique
+  public IDs, PDF files under `media/certificates/`, no silent overwrite of issued certs).
 - Money: `DecimalField` / `Decimal`, never float. Compute every total on the server.
 - Every schema change needs a migration (`python manage.py makemigrations`), committed with the code.
 - New endpoints need explicit permissions and tests (`apps/<app>/tests.py`, helpers in

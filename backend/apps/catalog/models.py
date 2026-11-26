@@ -123,8 +123,9 @@ class ProductImage(models.Model):
     image = models.ImageField(
         upload_to="products/",
         help_text=(
-            "Saved as a 1200×1200 JPEG. A wide or tall photo is cropped from the centre, "
-            "so keep the product in the middle on a light background."
+            "Saved as a 2000×2000 JPEG for sharper product zoom. A wide or tall photo is "
+            "cropped from the centre, so keep the product in the middle on a light background. "
+            "Re-upload older photos to regenerate them at the new size."
         ),
     )
     alt_text = models.CharField(max_length=200, blank=True)
@@ -141,7 +142,7 @@ class ProductImage(models.Model):
         super().save(*args, **kwargs)
 
     def _store_standard_image(self):
-        """Turn a newly uploaded photo into the shop's 1200×1200 JPEG."""
+        """Turn a newly uploaded photo into the shop's 2000×2000 JPEG."""
         field_file = self.image
         if not field_file or field_file._committed:
             return

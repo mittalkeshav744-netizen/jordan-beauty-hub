@@ -6,7 +6,7 @@ import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../hooks/useAuth'
 import { catalogService } from '../../services/catalogService'
 import Reveal from '../common/Reveal'
-import ProductGrid from '../products/ProductGrid'
+import ProductScrollRow from '../products/ProductScrollRow'
 
 /**
  * Home product shelf.
@@ -98,25 +98,13 @@ export default function PersonalizedShelf() {
         </Link>
       </div>
 
-      {!hasProfile && (
-        <div className="mb-4 flex flex-col items-start justify-between gap-2.5 rounded-card border border-line bg-cream p-3 sm:mb-6 sm:flex-row sm:items-center sm:gap-3 sm:p-5">
-          <div>
-            <p className="font-display text-sm font-bold text-ink sm:text-base">Want matches for your skin?</p>
-            <p className="text-xs text-muted sm:text-sm">
-              Sign in, then answer three quick questions — personal picks only apply to your account.
-            </p>
-          </div>
-          <Link
-            to="/skin-quiz"
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-control bg-ink px-3 text-xs font-semibold text-white transition-colors hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-accent sm:h-10 sm:px-4"
-          >
-            Start the quiz
-          </Link>
-        </div>
-      )}
-
       <Reveal>
-        <ProductGrid products={products || []} isLoading={isLoading} skeletonCount={4} />
+        <ProductScrollRow
+          products={products || []}
+          isLoading={isLoading}
+          skeletonCount={4}
+          ariaLabel={hasProfile ? 'Picked for your skin' : 'Bestsellers and favourites'}
+        />
       </Reveal>
     </section>
   )

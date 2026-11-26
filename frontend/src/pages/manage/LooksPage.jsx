@@ -191,7 +191,7 @@ export default function LooksPage() {
                         rel="noreferrer"
                         className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-btn border border-line px-3 text-xs font-semibold tracking-[0.04em] transition-colors hover:bg-subtle"
                       >
-                        <FaIcon icon="eye" className="h-3 w-3" />
+                        <FaIcon icon="globe" className="h-3 w-3" />
                         View
                       </a>
                     ) : null}

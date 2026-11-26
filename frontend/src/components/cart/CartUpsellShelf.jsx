@@ -94,10 +94,21 @@ export default function CartUpsellShelf({ subtotal }) {
                     {canQuickAdd ? (
                       <Button
                         size="sm"
-                        variant="outline"
                         fullWidth
                         isLoading={isAdding}
-                        onClick={() => addToCart(product.default_variant_id, 1, product.name)}
+                        onClick={() =>
+                          addToCart(product.default_variant_id, 1, product.name, {
+                            id: product.default_variant_id,
+                            name: 'Default',
+                            price: product.min_price,
+                            product_name: product.name,
+                            product_slug: product.slug,
+                            brand_name: product.brand?.name || '',
+                            image: product.primary_image?.image || null,
+                            is_available: true,
+                            stock_quantity: 99,
+                          })
+                        }
                         className="text-xs py-1.5"
                       >
                         + Add to bag

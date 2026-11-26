@@ -9,11 +9,14 @@ import { POLICY_LINKS } from '../../constants/policies'
 import { useAuth } from '../../hooks/useAuth'
 import { useNavCategories } from '../../hooks/useNavCategories'
 import { useStoreSettings, whatsappLink } from '../../hooks/useStoreSettings'
+import { useStorefront } from '../../hooks/useStorefront'
 import { categoryShopPath, topCategories } from '../../utils/categories'
 import Logo from './Logo'
 import NewsletterSignup from './NewsletterSignup'
 
 const CURRENT_YEAR = new Date().getFullYear()
+const DEFAULT_TAGLINE =
+  'Makeup, skincare, haircare and body care — chosen with care and delivered across India.'
 
 const PARTICLE_SPOTS = [
   { left: '12%', bottom: '18%', delay: '0s' },
@@ -24,29 +27,56 @@ const PARTICLE_SPOTS = [
   { left: '88%', bottom: '48%', delay: '5.5s' },
 ]
 
+function normalizeLinks(links, fallback) {
+  if (Array.isArray(links) && links.length > 0) {
+    return links
+      .map((link) => ({
+        label: link.label || '',
+        to: link.to || '/',
+        ...(link.show ? { show: link.show } : {}),
+      }))
+      .filter((link) => link.label && link.to)
+  }
+  return fallback
+}
+
 export default function Footer() {
   const { isAuthenticated } = useAuth()
   const chatLink = whatsappLink(useStoreSettings(), 'Hi, I have a question about an order or product.')
   const hiddenAudience = isAuthenticated ? 'guest' : 'member'
   const { categories } = useNavCategories()
+  const { config } = useStorefront()
 
+  const tagline = config?.footer_tagline || DEFAULT_TAGLINE
+  const includeCategories = config?.footer_include_categories !== false
+  const shopBase = normalizeLinks(config?.footer_shop_links, FOOTER_SHOP_BASE_LINKS)
   const shopLinks = [
-    ...FOOTER_SHOP_BASE_LINKS,
-    ...topCategories(categories).map((category) => ({
-      label: category.name,
-      to: categoryShopPath(category),
-    })),
+    ...shopBase,
+    ...(includeCategories
+      ? topCategories(categories).map((category) => ({
+          label: category.name,
+          to: categoryShopPath(category),
+        }))
+      : []),
   ]
 
   const groups = [
-    { title: 'Shop', links: shopLinks },
-    { title: 'My account', links: FOOTER_ACCOUNT_LINKS },
-    { title: 'Help', links: POLICY_LINKS },
+    {
+      title: config?.footer_shop_title || 'Shop',
+      links: shopLinks,
+    },
+    {
+      title: config?.footer_account_title || 'My account',
+      links: normalizeLinks(config?.footer_account_links, FOOTER_ACCOUNT_LINKS),
+    },
+    {
+      title: config?.footer_help_title || 'Help',
+      links: normalizeLinks(config?.footer_help_links, POLICY_LINKS),
+    },
   ]
 
   return (
-    <footer className="mt-8 sm:mt-16">
-      <NewsletterSignup />
+    <footer className="mt-8 sm:mt-16" data-manage-edit="/manage/storefront?focus=footer" data-manage-label="Footer">
       <div className="footer-beauty">
         <div className="footer-beauty__fx" aria-hidden="true">
           <span className="footer-beauty__glow footer-beauty__glow--a" />
@@ -68,9 +98,8 @@ export default function Footer() {
               <Link to="/" className="footer-beauty__logo" aria-label={STORE_NAME}>
                 <Logo tone="light" />
               </Link>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
-                Makeup, skincare, haircare and body care — chosen with care and delivered across India.
-              </p>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">{tagline}</p>
+              <NewsletterSignup variant="footer" />
               {chatLink ? (
                 <a
                   href={chatLink}

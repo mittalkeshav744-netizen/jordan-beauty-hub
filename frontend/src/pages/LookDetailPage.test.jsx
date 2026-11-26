@@ -55,7 +55,7 @@ describe('LookDetailPage', () => {
     const { cartValue } = renderLook({ auth: { isAuthenticated: true } })
 
     await user.click(await screen.findByRole('button', { name: /add the full look to bag/i }))
-    expect(cartValue.addItem).toHaveBeenCalledWith(21, 1)
+    expect(cartValue.addItem).toHaveBeenCalledWith(21, 1, null)
   })
 
   it('shows the not found page for an unknown look', async () => {

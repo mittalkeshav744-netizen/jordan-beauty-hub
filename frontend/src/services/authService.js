@@ -3,11 +3,16 @@ import apiClient from './apiClient'
 export const authService = {
   /** The signed-in user, or null when nobody is signed in. */
   getCurrentUser: () => apiClient.get('/auth/session/').then((response) => response.data.user),
+  /** Public Firebase / Razorpay flags for the storefront. */
+  getAuthConfig: () => apiClient.get('/auth/config/').then((response) => response.data),
   updateProfile: (data) => apiClient.patch('/auth/me/', data).then((response) => response.data),
   /** Save skin-quiz answers; returns the full user object including beauty_profile. */
   saveBeautyProfile: (data) =>
     apiClient.put('/auth/beauty-profile/', data).then((response) => response.data),
   login: (credentials) => apiClient.post('/auth/login/', credentials).then((response) => response.data),
+  /** Exchange a Firebase phone ID token for a Django session. */
+  firebaseLogin: (idToken) =>
+    apiClient.post('/auth/firebase-login/', { id_token: idToken }).then((response) => response.data),
   register: (data) => apiClient.post('/auth/register/', data).then((response) => response.data),
   logout: () => apiClient.post('/auth/logout/'),
   requestPasswordReset: (email) =>

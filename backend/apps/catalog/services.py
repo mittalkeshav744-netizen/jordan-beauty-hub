@@ -419,11 +419,11 @@ def change_stock(variant_id, quantity_change, reason, reference="", user=None):
     return variant
 
 
-PRODUCT_IMAGE_SIDE = 1200
+PRODUCT_IMAGE_SIDE = 2000
 
 
 def normalize_product_image(uploaded):
-    """Return JPEG bytes cropped to a square and resized to 1200×1200.
+    """Return JPEG bytes cropped to a square and resized to 2000×2000.
 
     The file pointer is left at the start. A file that is not a photo raises
     UnidentifiedImageError or OSError.
@@ -451,7 +451,7 @@ def normalize_product_image(uploaded):
     image = image.crop((left, top, left + side, top + side))
     image = image.resize((PRODUCT_IMAGE_SIDE, PRODUCT_IMAGE_SIDE), Image.Resampling.LANCZOS)
     output = BytesIO()
-    image.save(output, format="JPEG", quality=85, optimize=True)
+    image.save(output, format="JPEG", quality=90, optimize=True)
     return output.getvalue()
 
 

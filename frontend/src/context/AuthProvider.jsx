@@ -28,6 +28,13 @@ export default function AuthProvider({ children }) {
     return loggedInUser
   }, [])
 
+  const loginWithFirebase = useCallback(async (idToken) => {
+    const loggedInUser = await authService.firebaseLogin(idToken)
+    clearLocalBeautyProfile()
+    setUser(loggedInUser)
+    return loggedInUser
+  }, [])
+
   const register = useCallback(async (data) => {
     const newUser = await authService.register(data)
     const {

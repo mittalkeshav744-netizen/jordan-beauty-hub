@@ -32,6 +32,8 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState('')
   const [packagingOpen, setPackagingOpen] = useState(false)
+  const [shipmentDraft, setShipmentDraft] = useState(null)
+  const [savingShipment, setSavingShipment] = useState(false)
 
   const updateStatus = async (nextStatus) => {
     if (!nextStatus) return
@@ -67,6 +69,31 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
     `Hi ${address.full_name || 'there'}, this is Jordan Beauty Hub about order ${order.number}.`,
   )
 
+  const shipment = shipmentDraft ?? {
+    courier_name: order.courier_name || '',
+    tracking_number: order.tracking_number || '',
+    tracking_url: order.tracking_url || '',
+  }
+
+  const saveShipment = async (event) => {
+    event.preventDefault()
+    setSavingShipment(true)
+    try {
+      const updated = await portalService.setOrderShipment(number, {
+        courier_name: shipment.courier_name.trim(),
+        tracking_number: shipment.tracking_number.trim(),
+        tracking_url: shipment.tracking_url.trim(),
+      })
+      setData(updated)
+      setShipmentDraft(null)
+      showToast('Shipment details saved.', 'success')
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not save shipment.', 'error')
+    } finally {
+      setSavingShipment(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -79,7 +106,7 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
                 <button
                   type="button"
                   onClick={() => onCustomerOpen(order.customer_id)}
-                  className="text-accent hover:underline"
+                  className="btn-text px-1 text-accent hover:text-accent"
                 >
                   {order.customer_email}
                 </button>
@@ -102,14 +129,15 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
           onClick={copyNumber}
           className="inline-flex min-h-10 items-center gap-2 rounded-control border border-line bg-canvas px-3 text-sm font-medium hover:bg-subtle"
         >
-          <FaIcon icon="tag" className="h-3.5 w-3.5" />
+          <FaIcon icon="copy" className="h-3.5 w-3.5 text-ink-soft" />
           Copy number
         </button>
         {phone ? (
           <a
             href={`tel:${digitsOnly(phone)}`}
-            className="inline-flex min-h-10 items-center rounded-control border border-line bg-canvas px-3 text-sm font-medium hover:bg-subtle"
+            className="inline-flex min-h-10 items-center gap-2 rounded-control border border-line bg-canvas px-3 text-sm font-medium hover:bg-subtle"
           >
+            <FaIcon icon="phone" className="h-3.5 w-3.5 text-ink-soft" />
             Call customer
           </a>
         ) : null}
@@ -118,23 +146,28 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
             href={wa}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-10 items-center rounded-control border border-line bg-canvas px-3 text-sm font-medium hover:bg-subtle"
+            className="inline-flex min-h-10 items-center gap-2 rounded-control border border-line bg-canvas px-3 text-sm font-medium hover:bg-subtle"
           >
+            <FaIcon icon="mail" className="h-3.5 w-3.5 text-ink-soft" />
             WhatsApp
           </a>
         ) : null}
         <button
           type="button"
           onClick={() => setPackagingOpen(true)}
-          className="min-h-10 rounded-control bg-ink px-3 text-sm font-semibold text-white hover:bg-ink-soft"
+          className="inline-flex min-h-10 items-center gap-2 rounded-control bg-ink px-3 text-sm font-semibold text-white hover:bg-ink-soft"
         >
+          <FaIcon icon="templates" className="h-3.5 w-3.5" />
           Packaging documents
         </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-card border border-line bg-subtle/40 p-4">
-          <h3 className="text-sm font-semibold">Ship to</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <FaIcon icon="truck" className="h-3.5 w-3.5 text-berry" />
+            Ship to
+          </h3>
           <p className="mt-2 text-sm">
             {address.full_name}
             <br />
@@ -161,7 +194,10 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
         </div>
 
         <div className="rounded-card border border-line bg-subtle/40 p-4">
-          <h3 className="text-sm font-semibold">Totals</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <FaIcon icon="rupee" className="h-3.5 w-3.5 text-berry" />
+            Totals
+          </h3>
           <dl className="mt-2 space-y-1 text-sm">
             <div className="flex justify-between">
               <dt>Subtotal</dt>
@@ -210,9 +246,62 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
         </table>
       </div>
 
+      <form onSubmit={saveShipment} className="rounded-card border border-line bg-subtle/40 p-4 space-y-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <FaIcon icon="sliders" className="h-3.5 w-3.5 text-berry" />
+          Courier & tracking
+        </h3>
+        <p className="text-xs text-muted">
+          Enter tracking manually now. When your delivery API keys are ready, auto-create can plug in here.
+        </p>
+        <label className="block text-sm" htmlFor="courier-name">
+          Courier name
+          <input
+            id="courier-name"
+            value={shipment.courier_name}
+            onChange={(event) =>
+              setShipmentDraft({ ...shipment, courier_name: event.target.value })
+            }
+            placeholder="e.g. Delhivery"
+            className="mt-1 min-h-11 w-full rounded-control border border-line bg-canvas px-3 text-sm"
+          />
+        </label>
+        <label className="block text-sm" htmlFor="tracking-number">
+          Tracking number
+          <input
+            id="tracking-number"
+            value={shipment.tracking_number}
+            onChange={(event) =>
+              setShipmentDraft({ ...shipment, tracking_number: event.target.value })
+            }
+            className="mt-1 min-h-11 w-full rounded-control border border-line bg-canvas px-3 text-sm"
+          />
+        </label>
+        <label className="block text-sm" htmlFor="tracking-url">
+          Tracking URL
+          <input
+            id="tracking-url"
+            type="url"
+            value={shipment.tracking_url}
+            onChange={(event) =>
+              setShipmentDraft({ ...shipment, tracking_url: event.target.value })
+            }
+            placeholder="https://"
+            className="mt-1 min-h-11 w-full rounded-control border border-line bg-canvas px-3 text-sm"
+          />
+        </label>
+        <Button type="submit" variant="outline" isLoading={savingShipment}>
+          <FaIcon icon="check" className="mr-1.5 h-3.5 w-3.5" />
+          Save shipment
+        </Button>
+      </form>
+
       {order.allowed_next_statuses?.length > 0 ? (
         <div className="rounded-card border border-line bg-subtle/40 p-4">
-          <h3 className="text-sm font-semibold">Update status</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <FaIcon icon="check" className="h-3.5 w-3.5 text-berry" />
+            Update status
+          </h3>
           <p className="mt-1 text-xs text-muted">Each order can only move to the next allowed status.</p>
           <label className="mt-3 block text-sm" htmlFor="status-note">
             Optional note
@@ -243,7 +332,10 @@ export default function OrderDetailContent({ number, onCustomerOpen }) {
       ) : null}
 
       <div>
-        <h3 className="text-sm font-semibold">Status history</h3>
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <FaIcon icon="clock" className="h-3.5 w-3.5 text-berry" />
+          Status history
+        </h3>
         <ol className="mt-2 space-y-2 border-l border-line pl-4">
           {order.status_history.map((entry, index) => (
             <li key={`${entry.created_at}-${index}`} className="text-sm">

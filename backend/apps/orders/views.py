@@ -49,6 +49,7 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
                 idempotency_key=data["idempotency_key"],
                 coupon_code=data.get("coupon_code", ""),
                 customer_note=data.get("customer_note", ""),
+                payment_method=data.get("payment_method") or "cod",
             )
         except CheckoutError as error:
             return error_response(str(error))

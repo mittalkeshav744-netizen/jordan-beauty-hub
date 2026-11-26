@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,6 +34,7 @@ from .serializers import (
     PortalCustomerSerializer,
     PortalLookSerializer,
     PortalLookUpdateSerializer,
+    OrderShipmentSerializer,
     PortalOrderDetailSerializer,
     PortalOrderListSerializer,
     PortalProductCreateSerializer,
@@ -111,6 +113,18 @@ class OrderViewSet(
             )
         except InvalidStatusTransition as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        order.refresh_from_db()
+        return Response(PortalOrderDetailSerializer(order).data)
+
+    @action(detail=True, methods=["post"], url_path="shipment")
+    def set_shipment(self, request, number=None):
+        """Save courier / tracking details (manual until delivery API keys are set)."""
+        from apps.delivery.services import apply_manual_shipment
+
+        order = self.get_object()
+        serializer = OrderShipmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        apply_manual_shipment(order, **serializer.validated_data)
         order.refresh_from_db()
         return Response(PortalOrderDetailSerializer(order).data)
 
@@ -196,6 +210,7 @@ class ProductViewSet(
             name=data["name"],
             price=data["price"],
             compare_at_price=data.get("compare_at_price"),
+            shade_hex=data.get("shade_hex") or "",
             stock_quantity=data.get("stock_quantity") or 0,
             user=request.user,
         )
@@ -613,6 +628,8 @@ class CategoryViewSet(
 
 
 class StorefrontConfigView(PortalStaffMixin, APIView):
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
     def get(self, request):
         config = StorefrontConfig.load()
         return Response(
@@ -645,7 +662,7 @@ class StorefrontReelViewSet(
     pagination_class = None
 
     def get_queryset(self):
-        return StorefrontReel.objects.all()
+        return StorefrontReel.objects.select_related("product").all()
 
 
 class StorefrontReelReorderView(PortalStaffMixin, APIView):
@@ -656,7 +673,7 @@ class StorefrontReelReorderView(PortalStaffMixin, APIView):
             services.reorder_storefront_reels(serializer.validated_data["ordered_ids"])
         except services.PortalImageError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-        reels = StorefrontReel.objects.all()
+        reels = StorefrontReel.objects.select_related("product").all()
         return Response(
             PortalStorefrontReelSerializer(reels, many=True, context={"request": request}).data
         )

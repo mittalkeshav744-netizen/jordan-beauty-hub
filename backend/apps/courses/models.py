@@ -4,7 +4,11 @@ from django.db import models
 
 
 class Course(models.Model):
-    """A sellable beauty course with modules and mixed lesson media."""
+    """A sellable beauty course with modules and mixed lesson media.
+
+    Certificate fields are optional extras used by the Certificate Management
+    System under /certificate (same Course records as the shop).
+    """
 
     title = models.CharField(max_length=160)
     slug = models.SlugField(max_length=180, unique=True)
@@ -15,6 +19,23 @@ class Course(models.Model):
     is_published = models.BooleanField(default=False, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
     sort_order = models.PositiveIntegerField(default=0)
+    # Certificate / academy metadata (Option A — shared with shop courses)
+    code = models.CharField(max_length=40, blank=True, db_index=True)
+    category = models.CharField(max_length=80, blank=True)
+    duration_text = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Human-readable duration, e.g. '6 weeks' or '40 hours'.",
+    )
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    default_certificate_template = models.ForeignKey(
+        "certificates.CertificateTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="default_for_courses",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

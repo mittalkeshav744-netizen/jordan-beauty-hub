@@ -97,6 +97,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     is_in_stock = serializers.BooleanField(read_only=True)
     default_variant_id = serializers.SerializerMethodField()
     variant_count = serializers.SerializerMethodField()
+    card_variants = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -116,6 +117,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "is_featured",
             "default_variant_id",
             "variant_count",
+            "card_variants",
         ]
 
     def get_primary_image(self, product):
@@ -133,6 +135,23 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     def get_variant_count(self, product):
         return len(self._active_variants(product))
+
+    def get_card_variants(self, product):
+        """Slim shade/size list for product-card dropdowns (prefetch-friendly)."""
+        return [
+            {
+                "id": variant.id,
+                "name": variant.name,
+                "price": f"{variant.price:.2f}",
+                "compare_at_price": (
+                    f"{variant.compare_at_price:.2f}" if variant.compare_at_price is not None else None
+                ),
+                "shade_hex": variant.shade_hex or "",
+                "is_in_stock": variant.stock_quantity > 0,
+                "stock_quantity": variant.stock_quantity,
+            }
+            for variant in self._active_variants(product)
+        ]
 
 
 class ProductDetailSerializer(ProductListSerializer):

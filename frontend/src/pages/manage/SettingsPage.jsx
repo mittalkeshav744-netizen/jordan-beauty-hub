@@ -2,6 +2,7 @@ import ErrorMessage from '../../components/common/ErrorMessage'
 import Skeleton from '../../components/common/Skeleton'
 import FaIcon from '../../components/manage/FaIcon'
 import ManagePageHeader from '../../components/manage/ManagePageHeader'
+import ManagePanel from '../../components/manage/ManagePanel'
 import { useApi } from '../../hooks/useApi'
 import { portalService } from '../../services/portalService'
 import { formatPrice } from '../../utils/format'
@@ -15,10 +16,10 @@ export default function SettingsPage() {
   const rows = [
     { label: 'Store name', value: data.store_name, icon: 'store' },
     { label: 'Currency', value: data.currency, icon: 'tag' },
-    { label: 'Flat shipping fee', value: formatPrice(data.shipping_flat_fee), icon: 'orders' },
-    { label: 'Free shipping threshold', value: formatPrice(data.free_shipping_threshold), icon: 'orders' },
-    { label: 'WhatsApp number', value: data.whatsapp_number || 'Not set', icon: 'mail' },
-    { label: 'Beauty chat (Gemini)', value: data.chat_enabled ? 'Configured' : 'Not configured', icon: 'looks' },
+    { label: 'Flat shipping fee', value: formatPrice(data.shipping_flat_fee), icon: 'truck' },
+    { label: 'Free shipping threshold', value: formatPrice(data.free_shipping_threshold), icon: 'rupee' },
+    { label: 'WhatsApp number', value: data.whatsapp_number || 'Not set', icon: 'phone' },
+    { label: 'Beauty chat (Gemini)', value: data.chat_enabled ? 'Configured' : 'Not configured', icon: 'generator' },
   ]
 
   return (
@@ -47,23 +48,19 @@ export default function SettingsPage() {
           href="/"
           className="inline-flex min-h-11 items-center gap-2 rounded-btn border border-line bg-surface px-4 text-sm font-semibold shadow-[0_1px_2px_rgb(17_17_17/0.04)] transition-colors hover:border-ink hover:bg-ink hover:text-white"
         >
-          <FaIcon icon="store" className="h-3.5 w-3.5" />
+          <FaIcon icon="globe" className="h-3.5 w-3.5" />
           View storefront
         </a>
       </div>
 
-      <div className="mt-8 rounded-card border border-line bg-canvas p-4">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <FaIcon icon="check" className="h-3.5 w-3.5 text-accent" />
-          Owner checklist
-        </h2>
-        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-ink-soft">
+      <ManagePanel title="Owner checklist" icon="check" className="mt-8">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-soft">
           <li>Confirm pending COD orders every morning</li>
           <li>Restock anything marked low stock before ads or launches</li>
           <li>Approve product reviews so they appear on the shop</li>
           <li>Keep WhatsApp and beauty chat keys set for customer support</li>
         </ul>
-      </div>
+      </ManagePanel>
     </section>
   )
 }

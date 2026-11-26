@@ -1,5 +1,6 @@
 import re
 
+from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import Client, TestCase, override_settings
 from rest_framework import status
@@ -7,6 +8,8 @@ from rest_framework.test import APIClient, APITestCase
 
 from apps.accounts.models import Address
 from apps.test_factories import DEFAULT_PASSWORD, make_address, make_user
+
+User = get_user_model()
 
 
 class AuthenticationTests(APITestCase):
@@ -143,6 +146,14 @@ class AuthenticationTests(APITestCase):
 
 @override_settings(FRONTEND_URL="https://shop.example.com")
 class PasswordResetTests(APITestCase):
+    """Auth endpoints are throttled; clear the cache so suite order cannot trip 429s."""
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        super().setUp()
+        cache.clear()
+
     def request_reset(self, email):
         return self.client.post("/api/auth/password-reset/", {"email": email})
 
@@ -330,7 +341,7 @@ class DeveloperAdminAccessTests(TestCase):
         self.assertContains(product_page, "Ingredients")
         self.assertContains(product_page, "Product images")
         self.assertContains(product_page, "Product variants")
-        self.assertContains(product_page, "1200×1200")
+        self.assertContains(product_page, "2000×2000")
 
         look_page = self.client.get("/admin/looks/look/add/")
         self.assertEqual(look_page.status_code, 200)
@@ -360,3 +371,54 @@ class DeveloperAdminAccessTests(TestCase):
         self.assertTrue(self.client.login(email=self.staff.email, password=DEFAULT_PASSWORD))
         response = self.client.get("/admin/")
         self.assertNotEqual(response.status_code, 200)
+
+
+class FirebasePhoneAuthTests(APITestCase):
+    def test_auth_config_exposes_firebase_public_fields(self):
+        response = self.client.get("/api/auth/config/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("firebase", response.data)
+        self.assertIn("firebase_web_api_key", response.data)
+        self.assertIn("demo_auth", response.data)
+
+    @override_settings(ALLOW_DEMO_AUTH=False)
+    def test_firebase_login_rejects_demo_token_when_disabled(self):
+        response = self.client.post(
+            "/api/auth/firebase-login/",
+            {"id_token": "demo:+918181818181"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(ALLOW_DEMO_AUTH=True, DEMO_OTP="1234")
+    def test_firebase_login_demo_creates_session_user(self):
+        response = self.client.post(
+            "/api/auth/firebase-login/",
+            {"id_token": "demo:+918181818181"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], "+918181818181")
+        self.assertTrue(response.data["email_verified"])
+        self.assertEqual(self.client.get("/api/auth/me/").status_code, status.HTTP_200_OK)
+        user = User.objects.get(phone="+918181818181")
+        self.assertFalse(user.has_usable_password())
+        self.assertTrue(user.email.endswith("@users.jordanbeauty.local"))
+
+    @override_settings(ALLOW_DEMO_AUTH=True)
+    def test_firebase_login_demo_reuses_existing_phone_user(self):
+        first = self.client.post(
+            "/api/auth/firebase-login/",
+            {"id_token": "demo:+919999988888"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        user_id = first.data["id"]
+        self.client.post("/api/auth/logout/")
+        second = self.client.post(
+            "/api/auth/firebase-login/",
+            {"id_token": "demo:+919999988888"},
+            format="json",
+        )
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.data["id"], user_id)

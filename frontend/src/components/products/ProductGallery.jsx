@@ -6,7 +6,8 @@ import ProductImage from '../common/ProductImage'
 const ARROW_CLASSES =
   'absolute top-1/2 z-[2] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface/90 shadow-card hover:bg-surface'
 
-const ZOOM_SCALE = 2.4
+/** Hover zoom factor — oversized background pan, not CSS scale of a display-sized bitmap. */
+const ZOOM_SCALE = 2
 
 function ZoomIcon({ className = '' }) {
   return (
@@ -23,6 +24,10 @@ function ZoomIcon({ className = '' }) {
       <path d="M10.5 7.5v6M7.5 10.5h6" strokeLinecap="round" />
     </svg>
   )
+}
+
+function cssUrl(src) {
+  return `url(${JSON.stringify(String(src))})`
 }
 
 function GalleryLightbox({
@@ -155,6 +160,7 @@ export default function ProductGallery({ images = [], productName }) {
   const selectedImage = list[safeIndex]
   const hasMultiple = list.length > 1
   const canZoom = Boolean(selectedImage?.image)
+  const zoomActive = hovering && canZoom
 
   const showImage = (index) => {
     if (!list.length) return
@@ -200,18 +206,22 @@ export default function ProductGallery({ images = [], productName }) {
             src={selectedImage?.image}
             alt={selectedImage?.alt_text || productName}
             loading="eager"
-            className={`h-full w-full transition-transform duration-150 ease-out motion-reduce:transition-none ${
-              hovering && canZoom ? 'scale-[var(--gallery-zoom)]' : 'scale-100'
+            className={`h-full w-full transition-opacity duration-100 motion-reduce:transition-none ${
+              zoomActive ? 'opacity-0' : 'opacity-100'
             }`}
-            style={
-              hovering && canZoom
-                ? {
-                    '--gallery-zoom': String(ZOOM_SCALE),
-                    transformOrigin: `${origin.x}% ${origin.y}%`,
-                  }
-                : undefined
-            }
           />
+          {zoomActive ? (
+            <span
+              aria-hidden="true"
+              data-testid="gallery-hover-zoom"
+              className="absolute inset-0 bg-no-repeat"
+              style={{
+                backgroundImage: cssUrl(selectedImage.image),
+                backgroundSize: `${ZOOM_SCALE * 100}%`,
+                backgroundPosition: `${origin.x}% ${origin.y}%`,
+              }}
+            />
+          ) : null}
         </button>
 
         {canZoom ? (

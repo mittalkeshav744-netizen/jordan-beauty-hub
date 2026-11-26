@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from apps.payments.services import public_payment_settings
+
 from .chat import chat_is_configured
 from .models import NewsletterSubscriber, StorefrontConfig, StorefrontReel
 
@@ -12,6 +14,7 @@ def public_store_settings():
         "free_shipping_threshold": f"{settings.FREE_SHIPPING_THRESHOLD:.2f}",
         "whatsapp_number": settings.STORE_WHATSAPP_NUMBER,
         "chat_enabled": chat_is_configured(),
+        **public_payment_settings(),
     }
 
 
@@ -27,7 +30,7 @@ def _media_url(file_field, request=None):
 def public_storefront(request=None):
     """Home page copy and active reels for the shop."""
     config = StorefrontConfig.load()
-    reels = StorefrontReel.objects.filter(is_active=True)
+    reels = StorefrontReel.objects.filter(is_active=True).select_related("product")
     return {
         "config": {
             "announcement_text": config.announcement_text,
@@ -54,6 +57,16 @@ def public_storefront(request=None):
             "benefits": config.benefits or [],
             "budget_tiles": config.budget_tiles or [],
             "sections_order": config.sections_order or [],
+            "footer_tagline": config.footer_tagline,
+            "footer_shop_title": config.footer_shop_title,
+            "footer_account_title": config.footer_account_title,
+            "footer_help_title": config.footer_help_title,
+            "footer_shop_links": config.footer_shop_links or [],
+            "footer_account_links": config.footer_account_links or [],
+            "footer_help_links": config.footer_help_links or [],
+            "footer_include_categories": config.footer_include_categories,
+            "policies": config.policies or {},
+            "store_logo_url": _media_url(config.store_logo, request),
         },
         "reels": [
             {
@@ -61,7 +74,9 @@ def public_storefront(request=None):
                 "title": reel.title,
                 "video_file_url": _media_url(reel.video_file, request),
                 "video_url": reel.video_url,
-                "link_url": reel.link_url,
+                "link_type": reel.link_type,
+                "link_url": reel.resolved_link_url(),
+                "product_id": reel.product_id,
                 "start_seconds": reel.start_seconds,
                 "loop_end_seconds": reel.loop_end_seconds,
                 "sort_order": reel.sort_order,

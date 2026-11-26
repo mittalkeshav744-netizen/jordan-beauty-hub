@@ -106,7 +106,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <div className="space-y-6">
-          <ManagePanel title="Needs attention" aria-labelledby="attention-title">
+          <ManagePanel title="Needs attention" icon="info" aria-labelledby="attention-title">
             <h2 id="attention-title" className="sr-only">
               Needs attention
             </h2>
@@ -140,6 +140,7 @@ export default function DashboardPage() {
 
           <ManagePanel
             title="Order pipeline"
+            icon="sliders"
             description="Tap a status to filter the orders list."
             bodyClassName="p-4 sm:p-5"
             aria-labelledby="pipeline-title"
@@ -175,6 +176,7 @@ export default function DashboardPage() {
 
           <ManagePanel
             title="Recent orders"
+            icon="orders"
             actions={
               <Link to="/manage/orders" className="text-xs font-semibold text-berry hover:underline">
                 View all
@@ -217,21 +219,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-3">
-          <ManageStatCard label="Orders today" value={data.orders_today} to="/manage/orders" icon="orders" />
-          <ManageStatCard label="Orders this week" value={data.orders_this_week} to="/manage/orders" icon="orders" />
+          <ManageStatCard label="Orders today" value={data.orders_today} to="/manage/orders" icon="clock" />
+          <ManageStatCard label="Orders this week" value={data.orders_this_week} to="/manage/orders" icon="chart" />
           <ManageStatCard
             label="Open orders"
             value={data.open_orders}
             hint="Pending through shipped"
             to="/manage/orders?status=pending"
-            icon="orders"
+            icon="truck"
           />
           <ManageStatCard
             label="Revenue (30 days)"
             value={formatPrice(data.revenue_30d)}
             hint="Delivered orders"
             featured
-            icon="tag"
+            icon="rupee"
           />
           <div className="grid grid-cols-2 gap-3">
             <ManageStatCard label="Customers" value={data.customers} to="/manage/customers" icon="customers" />

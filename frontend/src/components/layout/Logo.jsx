@@ -1,4 +1,5 @@
 import { STORE_LOGO_SRC, STORE_NAME } from '../../constants/navigation'
+import { useStorefront } from '../../hooks/useStorefront'
 
 /* Wordmark: the last word ("Hub") sits on its own accent line under the rest of the name. */
 const NAME_WORDS = STORE_NAME.split(' ')
@@ -11,18 +12,20 @@ const TONE_CLASSES = {
 }
 
 /**
- * Logo slot + wordmark. Shows the image from STORE_LOGO_SRC when set,
- * otherwise a square "JBH" placeholder mark that reserves the logo's space.
+ * Logo slot + wordmark. Prefers storefront config logo, then STORE_LOGO_SRC,
+ * otherwise a square "JBH" placeholder mark.
  * tone: "dark" on light backgrounds (header), "light" on dark backgrounds (footer).
  */
 export default function Logo({ tone = 'dark', className = '' }) {
   const colours = TONE_CLASSES[tone]
+  const { config } = useStorefront()
+  const logoSrc = config?.store_logo_url || STORE_LOGO_SRC || ''
 
   return (
     <span className={`flex min-w-0 items-center gap-2 font-display sm:gap-2.5 ${className}`}>
-      {STORE_LOGO_SRC ? (
+      {logoSrc ? (
         <img
-          src={STORE_LOGO_SRC}
+          src={logoSrc}
           alt=""
           width="40"
           height="40"

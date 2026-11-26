@@ -36,7 +36,12 @@ export default function ManageLoginPage() {
   if (isCheckingSession) return <PageLoader />
 
   const from = location.state?.from || ''
-  const target = from && from.startsWith('/manage') && from !== '/manage/login' ? from : '/manage'
+  const target =
+    from &&
+    from !== '/manage/login' &&
+    (from.startsWith('/manage') || from.startsWith('/certificate'))
+      ? from
+      : '/manage'
 
   if (isAuthenticated && user?.is_staff) {
     return <Navigate to={target} replace />

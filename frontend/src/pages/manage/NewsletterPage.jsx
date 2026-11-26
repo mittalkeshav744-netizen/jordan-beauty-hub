@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorMessage from '../../components/common/ErrorMessage'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
 import Modal from '../../components/common/Modal'
 import ManagePageHeader from '../../components/manage/ManagePageHeader'
 import ManageToolbar from '../../components/manage/ManageToolbar'
@@ -38,6 +39,7 @@ export default function NewsletterPage() {
   const [query, setQuery] = useState('')
   const [campaign, setCampaign] = useState(EMPTY_CAMPAIGN)
   const [showCampaignModal, setShowCampaignModal] = useState(false)
+  const [showConfirmSend, setShowConfirmSend] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [audience, setAudience] = useState(null)
 
@@ -66,18 +68,17 @@ export default function NewsletterPage() {
     setShowCampaignModal(true)
   }
 
-  const handleSend = async (event) => {
+  const handleSend = (event) => {
     event.preventDefault()
     const total = audience?.total_recipients ?? 0
     if (total === 0) {
       showToast('No recipients yet — collect newsletter emails or wait for sign-ups.', 'error')
       return
     }
-    const confirmed = window.confirm(
-      `Send this ${CAMPAIGN_KINDS.find((item) => item.value === campaign.kind)?.label || 'email'} to ${total} recipient(s)?`,
-    )
-    if (!confirmed) return
+    setShowConfirmSend(true)
+  }
 
+  const confirmSend = async () => {
     setIsSending(true)
     try {
       const result = await portalService.sendNewsletterCampaign({
@@ -88,6 +89,7 @@ export default function NewsletterPage() {
       showToast(result.detail || `Sent to ${result.sent} people.`, 'success')
       setCampaign(EMPTY_CAMPAIGN)
       setShowCampaignModal(false)
+      setShowConfirmSend(false)
       const refreshed = await portalService.newsletterAudience()
       setAudience(refreshed)
     } catch (requestError) {
@@ -214,6 +216,17 @@ export default function NewsletterPage() {
           />
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={showConfirmSend}
+        title="Send this campaign?"
+        message={`Send this ${CAMPAIGN_KINDS.find((item) => item.value === campaign.kind)?.label || 'email'} to ${audience?.total_recipients ?? 0} recipient(s)?`}
+        confirmLabel="Yes, send"
+        cancelLabel="Keep editing"
+        isConfirming={isSending}
+        onConfirm={confirmSend}
+        onCancel={() => setShowConfirmSend(false)}
+      />
 
       {isLoading ? <Skeleton className="mt-4 h-48 w-full" /> : null}
       {error ? <ErrorMessage error={error} onRetry={reload} className="mt-4" /> : null}

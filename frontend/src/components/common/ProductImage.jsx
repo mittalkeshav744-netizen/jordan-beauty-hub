@@ -19,13 +19,16 @@ export default function ProductImage({ src, alt, className = '', loading = 'lazy
       </div>
     )
   }
+  const fitClass = /\bobject-(contain|cover|fill|none|scale-down)\b/.test(className)
+    ? ''
+    : 'object-cover '
   return (
     <img
       src={src}
       alt={alt}
       loading={loading}
       decoding="async"
-      className={`object-cover ${className}`}
+      className={`${fitClass}${className}`}
       style={style}
     />
   )

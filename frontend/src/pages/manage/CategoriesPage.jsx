@@ -238,13 +238,17 @@ export default function CategoriesPage() {
       <ManageToolbar
         search={
           <div className="relative w-full min-w-0 flex-1">
+            <FaIcon
+              icon="search"
+              className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted"
+            />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search categories…"
               aria-label="Search categories"
-              className="min-h-11 w-full rounded-control border border-line bg-canvas py-2 pr-3 pl-3 text-sm text-ink placeholder:text-muted"
+              className="min-h-11 w-full rounded-control border border-line bg-canvas py-2 pr-3 pl-9 text-sm text-ink placeholder:text-muted"
             />
           </div>
         }
@@ -509,41 +513,41 @@ export default function CategoriesPage() {
                         rel="noopener noreferrer"
                         title="View on shop"
                         aria-label={`View ${category.name} on shop`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-btn border border-line text-ink-soft transition-colors hover:bg-subtle hover:text-ink"
+                        className="manage-icon-btn text-ink-soft hover:text-ink"
                         onMouseDown={(event) => event.stopPropagation()}
                       >
-                        <FaIcon icon="eye" className="h-3 w-3" />
+                        <FaIcon icon="globe" className="h-3.5 w-3.5" />
                       </a>
                       <button
                         type="button"
                         onClick={() => handleToggleActive(category)}
                         title={category.is_active ? 'Deactivate' : 'Activate'}
                         aria-label={category.is_active ? `Deactivate ${category.name}` : `Activate ${category.name}`}
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-btn border border-line transition-colors ${
+                        className={`manage-icon-btn ${
                           category.is_active
                             ? 'text-success hover:bg-success-soft'
-                            : 'text-muted hover:bg-subtle hover:text-ink'
+                            : 'text-muted hover:text-ink'
                         }`}
                       >
-                        <FaIcon icon="check" className="h-3 w-3" />
+                        <FaIcon icon="check" className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditForm(category)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-btn border border-line text-ink hover:bg-subtle"
+                        className="manage-icon-btn"
                         title={`Edit ${category.name}`}
                         aria-label={`Edit ${category.name}`}
                       >
-                        <FaIcon icon="pen" className="h-3 w-3" />
+                        <FaIcon icon="pen" className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeletingCategory(category)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-btn border border-line text-danger hover:bg-danger-soft"
+                        className="manage-icon-btn manage-icon-btn--danger"
                         title={`Delete ${category.name}`}
                         aria-label={`Delete ${category.name}`}
                       >
-                        <FaIcon icon="trash" className="h-3 w-3" />
+                        <FaIcon icon="trash" className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </li>

@@ -5,6 +5,7 @@ import { useToast } from '../../hooks/useToast'
 import { portalService } from '../../services/portalService'
 import { discountPercent, formatPrice } from '../../utils/format'
 import { variantDraftsFromProduct } from './productEditorUtils'
+import ShadeColorField from './ShadeColorField'
 
 /**
  * Shade/size options with price and stock. Used on the full product page.
@@ -41,6 +42,7 @@ export default function ProductOptionsEditor({ product, onChange }) {
         price: draft.price,
         compare_at_price: draft.compare_at_price || null,
         is_active: draft.is_active,
+        shade_hex: draft.shade_hex || '',
       })
       const raw = stockDrafts[variantId]
       const text = raw === undefined ? String(variant.stock_quantity) : String(raw).trim()
@@ -145,9 +147,10 @@ export default function ProductOptionsEditor({ product, onChange }) {
         price: newVariant.price,
         compare_at_price: newVariant.compare_at_price || null,
         stock_quantity: Number(newVariant.stock_quantity || 0),
+        shade_hex: newVariant.shade_hex || '',
+        stock_quantity: Number(newVariant.stock_quantity || 0),
       })
-      setNewVariant({ name: '', price: '', compare_at_price: '', stock_quantity: '0' })
-      syncFromProduct(updated)
+      setNewVariant({ name: '', price: '', compare_at_price: '', shade_hex: '', stock_quantity: '0' })
       showToast('Option added.', 'success')
     } catch (err) {
       showToast(err.response?.data?.detail || 'Could not add option.', 'error')
@@ -177,6 +180,7 @@ export default function ProductOptionsEditor({ product, onChange }) {
           price: variant.price,
           compare_at_price: variant.compare_at_price || '',
           is_active: variant.is_active,
+          shade_hex: variant.shade_hex || '',
         }
         const off = discountPercent(draft.price, draft.compare_at_price)
         return (
@@ -212,6 +216,17 @@ export default function ProductOptionsEditor({ product, onChange }) {
                 />
               </label>
               <label className="block text-sm">
+              <ShadeColorField
+                id={`shade-hex-${variant.id}`}
+                label="Shade colour"
+                value={draft.shade_hex || ''}
+                onChange={(shade_hex) =>
+                  setVariantDrafts((current) => ({
+                    ...current,
+                    [variant.id]: { ...draft, shade_hex },
+                  }))
+                }
+              />
                 <span className="font-medium text-ink">Selling price</span>
                 <input
                   value={draft.price}
@@ -329,6 +344,12 @@ export default function ProductOptionsEditor({ product, onChange }) {
           />
         </label>
         <label className="block text-sm">
+        <ShadeColorField
+          id="new-shade-hex"
+          label="Shade colour"
+          value={newVariant.shade_hex}
+          onChange={(shade_hex) => setNewVariant({ ...newVariant, shade_hex })}
+        />
           <span className="font-medium text-ink">Selling price</span>
           <input
             required

@@ -26,7 +26,11 @@ export default function ManageStatCard({
           {label}
         </p>
         {icon ? (
-          <span className={featured ? 'text-white/70' : 'text-accent'}>
+          <span
+            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control ${
+              featured ? 'bg-white/15 text-white' : 'bg-accent-soft text-berry'
+            }`}
+          >
             <FaIcon icon={icon} className="h-3.5 w-3.5" />
           </span>
         ) : null}

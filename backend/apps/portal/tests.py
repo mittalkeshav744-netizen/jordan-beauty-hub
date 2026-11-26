@@ -160,6 +160,7 @@ class PortalProductStockTests(APITestCase):
                 "category_id": category.id,
                 "short_description": "Shine",
                 "variant_name": "Rose",
+                "shade_hex": "#c46a6a",
                 "price": "499.00",
                 "compare_at_price": "699.00",
                 "stock_quantity": 4,
@@ -170,6 +171,7 @@ class PortalProductStockTests(APITestCase):
         variant = created.data["variants"][0]
         self.assertEqual(variant["stock_quantity"], 4)
         self.assertEqual(variant["compare_at_price"], "699.00")
+        self.assertEqual(variant["shade_hex"], "#C46A6A")
 
         edited = self.client.patch(
             f"/api/portal/variants/{variant['id']}/",
@@ -177,6 +179,7 @@ class PortalProductStockTests(APITestCase):
                 "name": "Rose Nude",
                 "price": "450.00",
                 "compare_at_price": "699.00",
+                "shade_hex": "#8B1A2B",
                 "is_active": True,
             },
             format="json",
@@ -185,6 +188,7 @@ class PortalProductStockTests(APITestCase):
         saved = next(row for row in edited.data["variants"] if row["id"] == variant["id"])
         self.assertEqual(saved["price"], "450.00")
         self.assertEqual(saved["name"], "Rose Nude")
+        self.assertEqual(saved["shade_hex"], "#8B1A2B")
 
         out = self.client.post(f"/api/portal/variants/{variant['id']}/out-of-stock/")
         self.assertEqual(out.status_code, status.HTTP_200_OK)
@@ -482,12 +486,12 @@ class PortalCategoriesStorefrontTests(APITestCase):
     def test_staff_can_create_and_reorder_reels(self):
         first = self.client.post(
             "/api/portal/storefront/reels/",
-            {"title": "Reel A", "link_url": "/shop", "is_active": True},
+            {"title": "Reel A", "link_type": "path", "link_url": "/shop", "is_active": True},
             format="json",
         )
         second = self.client.post(
             "/api/portal/storefront/reels/",
-            {"title": "Reel B", "link_url": "/shop", "is_active": True},
+            {"title": "Reel B", "link_type": "path", "link_url": "/shop", "is_active": True},
             format="json",
         )
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)
@@ -500,6 +504,25 @@ class PortalCategoriesStorefrontTests(APITestCase):
         )
         self.assertEqual(reorder.status_code, status.HTTP_200_OK)
         self.assertEqual([row["id"] for row in reorder.data], [second.data["id"], first.data["id"]])
+
+    def test_staff_can_create_product_linked_reel(self):
+        from apps.test_factories import make_product
+
+        product = make_product(name="Portal Reel Product")
+        response = self.client.post(
+            "/api/portal/storefront/reels/",
+            {
+                "title": "Featured serum",
+                "link_type": "product",
+                "product_id": product.pk,
+                "is_active": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["link_type"], "product")
+        self.assertEqual(response.data["product_id"], product.pk)
+        self.assertEqual(response.data["resolved_link_url"], f"/products/{product.slug}")
 
 
 class PortalNewsletterCampaignTests(APITestCase):

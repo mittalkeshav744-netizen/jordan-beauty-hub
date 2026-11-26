@@ -21,7 +21,9 @@ export default function VariantSelector({ variants, selectedId, onSelect }) {
               aria-label={label}
               aria-pressed={isSelected}
               title={label}
-              className={`relative h-11 w-11 overflow-hidden rounded-full border-2 ${isSelected ? 'border-ink' : 'border-surface ring-1 ring-line'}`}
+              className={`relative h-11 w-11 overflow-hidden rounded-full border-2 transition-[transform,box-shadow] hover:scale-105 ${
+                isSelected ? 'border-ink shadow-card' : 'border-surface ring-1 ring-line hover:ring-ink/40'
+              }`}
               style={{ backgroundColor: variant.shade_hex }}
             >
               {!variant.is_in_stock && (

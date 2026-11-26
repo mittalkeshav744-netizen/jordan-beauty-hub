@@ -94,7 +94,20 @@ function ProductPurchasePanel({ product }) {
     quantityRef.current = next
     setQuantity(next)
   }
-  const addSelected = () => addToCart(selectedVariant.id, quantityRef.current, product.name)
+  const addSelected = () =>
+    addToCart(selectedVariant.id, quantityRef.current, product.name, {
+      id: selectedVariant.id,
+      name: selectedVariant.name,
+      sku: selectedVariant.sku,
+      price: selectedVariant.price,
+      compare_at_price: selectedVariant.compare_at_price,
+      stock_quantity: selectedVariant.stock_quantity,
+      product_name: product.name,
+      product_slug: product.slug,
+      brand_name: product.brand?.name || '',
+      image: product.primary_image?.image || product.images?.[0]?.image || null,
+      is_available: selectedVariant.is_in_stock,
+    })
 
   const handleSelectVariant = (variantId) => {
     setSelectedId(variantId)

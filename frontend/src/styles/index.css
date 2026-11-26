@@ -229,6 +229,17 @@
     }
   }
 
+  @keyframes success-tick-in {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   @keyframes auth-panel-in {
     from {
       opacity: 0;
@@ -254,6 +265,8 @@
   html {
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
+    /* Clip sideways overflow on the scrollport so sticky sidebars still work. */
+    overflow-x: clip;
   }
 
   /*
@@ -379,6 +392,42 @@
 }
 
 @layer components {
+  .success-tick {
+    animation: success-tick-in 0.45s var(--ease-standard, ease-out) both;
+  }
+
+  /*
+   * Shared button hover affordances for raw <button>/<a> controls that are not
+   * the labeled <Button> component. Use with size/layout classes as needed.
+   */
+  .btn-icon {
+    @apply inline-flex shrink-0 items-center justify-center rounded-btn transition-colors duration-200 ease-standard;
+    @apply hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .btn-text {
+    @apply inline-flex items-center justify-center rounded-btn border border-transparent px-2 py-1;
+    @apply font-semibold tracking-[0.06em] text-ink-soft transition-[color,background-color,border-color,box-shadow]
+      duration-200 ease-standard;
+    @apply hover:border-line hover:bg-cream hover:text-ink hover:shadow-[0_1px_3px_rgb(17_17_17/0.08)];
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .btn-text-danger {
+    @apply inline-flex items-center justify-center rounded-btn border border-transparent px-2 py-1;
+    @apply font-semibold tracking-[0.06em] text-danger transition-[color,background-color,border-color]
+      duration-200 ease-standard;
+    @apply hover:border-danger/30 hover:bg-danger-soft hover:text-danger;
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  /* Home product scroll row — size cards against the visible shelf width. */
+  .product-scroll-row {
+    container-type: inline-size;
+    width: 100%;
+    min-width: 0;
+  }
+
   /* Flash target after Website content map → manage deep-link (?focus=…). */
   .manage-focus-highlight {
     outline: 3px solid var(--color-accent);
@@ -424,6 +473,15 @@
     transform: translateY(-1px);
   }
 
+  .manage-icon-btn {
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-btn border border-line bg-surface text-ink-soft transition-colors;
+    @apply hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .manage-icon-btn--danger {
+    @apply text-danger hover:border-danger/30 hover:bg-danger-soft hover:text-danger;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .manage-shell .manage-kpi:hover,
     .manage-shell .manage-kpi-featured:hover {
@@ -435,12 +493,14 @@
   .app-shell {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
   }
 
   .page-container {
-    @apply mx-auto w-full max-w-page px-3 sm:px-6 lg:px-8;
+    @apply mx-auto w-full min-w-0 max-w-page px-3 sm:px-6 lg:px-8;
   }
 
   .section-title {
