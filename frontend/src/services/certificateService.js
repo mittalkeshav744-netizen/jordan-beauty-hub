@@ -100,9 +100,19 @@ export const certificateService = {
   generate: (data) => post('issued/generate/', data),
   downloadPdf: (id) =>
     apiClient.get(`${root}/issued/${id}/download/`, { responseType: 'blob' }).then((r) => r.data),
+  printPdf: (id) =>
+    apiClient
+      .get(`${root}/issued/${id}/download/`, {
+        params: { fit_a4: 1, inline: 1 },
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
   printBundle: (data) =>
     apiClient.post(`${root}/issued/print-bundle/`, data, { responseType: 'blob' }).then((r) => r.data),
+  publicDownloadUrl: (publicId) =>
+    `/api${root}/verify/${encodeURIComponent(publicId)}/download/`,
   revoke: (id, reason) => post(`issued/${id}/revoke/`, { reason }),
+  deleteIssued: (id) => destroy(`issued/${id}/`),
   reissue: (id, data = {}) => post(`issued/${id}/reissue/`, data),
   audit: (id) => get(`issued/${id}/audit/`),
   emailCertificate: (id, data) => post(`issued/${id}/email/`, data),

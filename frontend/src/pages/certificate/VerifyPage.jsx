@@ -203,7 +203,20 @@ function VerifyResult({ certificateId, inPortal }) {
           </div>
         ) : null}
 
-        <div className="mt-8 border-t border-[var(--cert-line)] pt-4">
+        <div className="mt-8 flex flex-wrap gap-2 border-t border-[var(--cert-line)] pt-4">
+          {data?.valid && (data?.download_url || data?.certificate_id) ? (
+            <a
+              href={
+                data.download_url ||
+                certificateService.publicDownloadUrl(data.certificate_id || certificateId)
+              }
+              download={`${data.certificate_id || certificateId}.pdf`}
+              className="cert-btn-primary w-full sm:w-auto"
+            >
+              <FaIcon icon="download" className="h-3.5 w-3.5" />
+              Download Certificate PDF
+            </a>
+          ) : null}
           <Link to="/certificate/verify" className="cert-btn-outline w-full sm:w-auto">
             <FaIcon icon="search" className="h-3.5 w-3.5" />
             Check another serial

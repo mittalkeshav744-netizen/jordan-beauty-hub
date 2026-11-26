@@ -18,7 +18,7 @@ export default function SearchAndFilter({
           />
           <input
             id="cert-search"
-            className="cert-input pl-9"
+            className="cert-input cert-input--search pl-9"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}

@@ -14,16 +14,19 @@ export function printPdfBlob(blob, title = 'Certificate') {
   const url = URL.createObjectURL(blob)
   const iframe = document.createElement('iframe')
   iframe.setAttribute('title', title)
+  // Keep a real off-screen viewport box so Chromium PDF viewer renders full A4 pages cleanly.
   iframe.style.cssText =
-    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none'
+    'position:fixed;left:-200vw;top:0;width:100vw;height:100vh;border:0;pointer-events:none'
   document.body.appendChild(iframe)
   iframe.onload = () => {
-    try {
-      iframe.contentWindow.focus()
-      iframe.contentWindow.print()
-    } catch {
-      window.open(url, '_blank', 'noopener,noreferrer')
-    }
+    window.setTimeout(() => {
+      try {
+        iframe.contentWindow.focus()
+        iframe.contentWindow.print()
+      } catch {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    }, 250)
     window.setTimeout(() => {
       iframe.remove()
       URL.revokeObjectURL(url)

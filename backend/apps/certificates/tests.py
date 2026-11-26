@@ -401,6 +401,95 @@ class DesignerPdfAndVerifyTests(TestCase):
         self.assertTrue(pdf_bytes.startswith(b"%PDF"))
         self.assertGreater(len(pdf_bytes), 400)
 
+    def test_pdf_supports_bundled_and_builtin_fonts(self):
+        from apps.certificates.services import _CUSTOM_FONT_SPECS, _pdf_font_name, generate_certificate_pdf_bytes
+
+        for family in _CUSTOM_FONT_SPECS:
+            resolved = _pdf_font_name({"fontFamily": family, "fontWeight": "normal", "fontStyle": "normal"})
+            self.assertNotEqual(resolved, "", f"Empty font resolution for {family}")
+
+        self.assertEqual(
+            _pdf_font_name({"fontFamily": "Open Sans", "fontWeight": "bold", "fontStyle": "italic"}),
+            "OpenSans-BoldItalic",
+        )
+        self.assertEqual(
+            _pdf_font_name({"fontFamily": "opensans", "fontWeight": "normal", "fontStyle": "italic"}),
+            "OpenSans-Italic",
+        )
+        self.assertEqual(
+            _pdf_font_name({"fontFamily": "times", "fontWeight": "bold", "fontStyle": "italic"}),
+            "Times-BoldItalic",
+        )
+        self.assertEqual(
+            _pdf_font_name({"fontFamily": "helvetica", "fontWeight": "normal", "fontStyle": "italic"}),
+            "Helvetica-Oblique",
+        )
+
+        self.version.layout_json = {
+            "elements": [
+                {
+                    "id": "f1",
+                    "type": "text",
+                    "text": "Open Sans Bold",
+                    "x": 50,
+                    "y": 25,
+                    "fontSize": 22,
+                    "fontWeight": "bold",
+                    "fontFamily": "open-sans",
+                    "align": "center",
+                    "color": "#1a2744",
+                    "zIndex": 1,
+                },
+                {
+                    "id": "f2",
+                    "type": "text",
+                    "text": "Playfair Italic",
+                    "x": 50,
+                    "y": 40,
+                    "fontSize": 18,
+                    "fontStyle": "italic",
+                    "fontFamily": "playfair",
+                    "align": "center",
+                    "color": "#1a2744",
+                    "zIndex": 2,
+                },
+                {
+                    "id": "f3",
+                    "type": "text",
+                    "text": "Signature Script",
+                    "x": 50,
+                    "y": 60,
+                    "fontSize": 24,
+                    "fontFamily": "dancing-script",
+                    "align": "center",
+                    "color": "#1a2744",
+                    "zIndex": 3,
+                },
+                {
+                    "id": "f4",
+                    "type": "text",
+                    "text": "JB-2026-0001",
+                    "x": 50,
+                    "y": 78,
+                    "fontSize": 12,
+                    "fontFamily": "roboto-mono",
+                    "align": "center",
+                    "color": "#4a5568",
+                    "zIndex": 4,
+                },
+            ]
+        }
+        self.version.save(update_fields=["layout_json"])
+        cert = issue_certificate(
+            student=self.student,
+            course=self.course,
+            template_version=self.version,
+            user=self.staff,
+        )
+        pdf_bytes = generate_certificate_pdf_bytes(cert)
+        self.assertTrue(pdf_bytes.startswith(b"%PDF"))
+        self.assertGreater(len(pdf_bytes), 5000)
+
     def test_verify_reissue_chain_fields(self):
         first = issue_certificate(
             student=self.student,
@@ -430,6 +519,81 @@ class DesignerPdfAndVerifyTests(TestCase):
         self.assertEqual(new.status_code, 200)
         self.assertTrue(new.data["valid"])
         self.assertEqual(new.data["replaces"], first.public_id)
+        self.assertEqual(
+            new.data["download_url"],
+            f"/api/certificates/verify/{second.public_id}/download/",
+        )
+
+    def test_public_qr_download_and_a4_pdf_normalization(self):
+        import io
+
+        from django.core.files.base import ContentFile
+        from pypdf import PdfReader
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.pdfgen import canvas as rl_canvas
+
+        from apps.certificates.services import (
+            fit_pdf_for_a4_print,
+            qr_download_url,
+            revoke_certificate,
+        )
+
+        # Simulate an oversized non-A4 PDF background upload (e.g. 2000x1400 Canva export).
+        bg_buf = io.BytesIO()
+        bg_canvas = rl_canvas.Canvas(bg_buf, pagesize=(2000, 1400))
+        bg_canvas.drawString(100, 100, "Custom BG")
+        bg_canvas.save()
+        self.template.background_file.save("big-bg.pdf", ContentFile(bg_buf.getvalue()), save=True)
+        self.version.background_file = self.template.background_file
+        self.version.orientation = "landscape"
+        self.version.save(update_fields=["background_file", "orientation"])
+
+        cert = issue_certificate(
+            student=self.student,
+            course=self.course,
+            template_version=self.version,
+            user=self.staff,
+        )
+        self.assertTrue(qr_download_url(cert.public_id).endswith(f"/api/certificates/verify/{cert.public_id}/download/"))
+
+        # Output must be exact landscape A4 even with a 2000x1400 PDF background.
+        cert.pdf.open("rb")
+        generated_bytes = cert.pdf.read()
+        cert.pdf.close()
+        page = PdfReader(io.BytesIO(generated_bytes)).pages[0]
+        expected_w, expected_h = landscape(A4)
+        self.assertAlmostEqual(float(page.mediabox.width), expected_w, delta=1.0)
+        self.assertAlmostEqual(float(page.mediabox.height), expected_h, delta=1.0)
+
+        # Print-safe A4 helper keeps exact A4 MediaBox for physical printers.
+        fitted_bytes = fit_pdf_for_a4_print(generated_bytes)
+        fitted_page = PdfReader(io.BytesIO(fitted_bytes)).pages[0]
+        self.assertAlmostEqual(float(fitted_page.mediabox.width), expected_w, delta=1.0)
+        self.assertAlmostEqual(float(fitted_page.mediabox.height), expected_h, delta=1.0)
+
+        # Public QR scan download works for authentic certificate, rejects missing/revoked.
+        dl = self.client.get(f"/api/certificates/verify/{cert.public_id}/download/")
+        self.assertEqual(dl.status_code, 200)
+        self.assertEqual(dl["Content-Type"], "application/pdf")
+        self.assertTrue(b"".join(dl.streaming_content).startswith(b"%PDF"))
+
+        missing = self.client.get("/api/certificates/verify/JBH-2099-999999/download/")
+        self.assertEqual(missing.status_code, 404)
+
+        revoke_certificate(cert, user=self.staff, reason="test")
+        revoked = self.client.get(f"/api/certificates/verify/{cert.public_id}/download/")
+        self.assertEqual(revoked.status_code, 410)
+
+        # Staff A4 print endpoint returns valid fitted PDF.
+        self.client.force_authenticate(self.staff)
+        staff_print = self.client.get(f"/api/certificates/issued/{cert.id}/download/?fit_a4=1&inline=1")
+        self.assertEqual(staff_print.status_code, 200)
+        self.assertTrue(staff_print.content.startswith(b"%PDF"))
+
+        # Staff can delete a wrong certificate so it no longer appears in issued list.
+        delete_resp = self.client.delete(f"/api/certificates/issued/{cert.id}/")
+        self.assertEqual(delete_resp.status_code, 204)
+        self.assertFalse(Certificate.objects.filter(id=cert.id).exists())
 
 
 class ShopEnrollmentSyncApiTests(TestCase):

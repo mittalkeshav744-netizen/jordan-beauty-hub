@@ -106,6 +106,31 @@ export default function JobsPage() {
               render: (job) => (job.total ? `${job.current ?? 0} / ${job.total}` : '—'),
             },
             {
+              key: 'result',
+              header: 'Summary',
+              render: (job) => {
+                const created = job.result?.created?.length || 0
+                const sent = job.result?.sent?.length || 0
+                const errors = job.result?.errors || []
+                const parts = []
+                if (created) parts.push(`${created} issued`)
+                if (sent) parts.push(`${sent} emailed`)
+                if (errors.length) parts.push(`${errors.length} skipped/failed`)
+                return (
+                  <div className="max-w-xs text-xs">
+                    <span className={errors.length && !created && !sent ? 'font-medium text-[var(--cert-danger)]' : 'text-[var(--cert-navy)]'}>
+                      {parts.join(' · ') || '—'}
+                    </span>
+                    {errors[0]?.error ? (
+                      <p className="truncate text-[0.7rem] text-[var(--cert-muted)]" title={errors[0].error}>
+                        {errors[0].error}
+                      </p>
+                    ) : null}
+                  </div>
+                )
+              },
+            },
+            {
               key: 'created_at',
               header: 'Created',
               render: (job) => (

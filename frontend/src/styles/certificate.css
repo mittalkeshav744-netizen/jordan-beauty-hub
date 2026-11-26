@@ -22,6 +22,7 @@
   --font-cert-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
 }
 
+@layer components {
 .cert-shell {
 
   height: 100dvh;
@@ -220,6 +221,10 @@
   line-height: 1.4;
 }
 
+.cert-input.cert-input--search {
+  padding-left: 2.35rem;
+}
+
 .cert-input[type='datetime-local'],
 .cert-input[type='date'],
 .cert-input[type='time'],
@@ -319,5 +324,13 @@ textarea.cert-input {
   }
   .cert-shell .cert-sidebar.is-open {
     transform: translateX(0);
+  }
+}
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
   }
 }

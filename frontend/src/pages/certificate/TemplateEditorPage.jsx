@@ -3,8 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import DynamicFieldsManager from '../../components/certificate/DynamicFieldsManager'
 import LoadingState from '../../components/certificate/LoadingState'
+import SignatureModal from '../../components/certificate/SignatureModal'
 import Modal from '../../components/common/Modal'
 import FaIcon from '../../components/manage/FaIcon'
+import {
+  CERTIFICATE_FONT_GROUPS,
+  cssFontFamily,
+} from '../../constants/certificateFonts'
 import { useToast } from '../../hooks/useToast'
 import { certificateService } from '../../services/certificateService'
 
@@ -18,14 +23,6 @@ const DEFAULT_PLACEHOLDERS = [
   { key: 'grade', label: 'Grade', is_active: true },
   { key: 'duration', label: 'Duration', is_active: true },
   { key: 'enrollment_number', label: 'Enrollment number', is_active: true },
-]
-
-const FONT_FAMILIES = [
-  { value: 'cormorant', label: 'Cormorant Garamond' },
-  { value: 'script', label: 'Great Vibes (script)' },
-  { value: 'times', label: 'Times' },
-  { value: 'helvetica', label: 'Helvetica' },
-  { value: 'courier', label: 'Courier' },
 ]
 
 const DEFAULT_LAYOUT = {
@@ -89,19 +86,6 @@ function elementLabel(el) {
   return el.text || 'Text'
 }
 
-function cssFontFamily(family) {
-  const key = (family || 'helvetica').toLowerCase()
-  if (key === 'cormorant' || key === 'cormorant-garamond' || key === 'garamond' || key === 'cormorantgaramond') {
-    return '"Cormorant Garamond", Georgia, "Times New Roman", serif'
-  }
-  if (key === 'script' || key === 'great-vibes' || key === 'greatvibes' || key === 'cursive') {
-    return '"Great Vibes", "Segoe Script", "Brush Script MT", cursive'
-  }
-  if (key === 'times' || key === 'times-roman' || key === 'serif') return 'Times New Roman, Times, serif'
-  if (key === 'courier' || key === 'mono' || key === 'monospace') return 'Courier New, Courier, monospace'
-  return 'Helvetica, Arial, sans-serif'
-}
-
 export default function TemplateEditorPage() {
   const { id } = useParams()
   const isCreate = !id || id === 'create'
@@ -125,6 +109,9 @@ export default function TemplateEditorPage() {
   const [showFieldMenu, setShowFieldMenu] = useState(false)
   const [fields, setFields] = useState(DEFAULT_PLACEHOLDERS)
   const [manageFieldsOpen, setManageFieldsOpen] = useState(false)
+  const [signatureOpen, setSignatureOpen] = useState(false)
+  const [instituteSignatureUrl, setInstituteSignatureUrl] = useState('')
+  const [instituteSignatory, setInstituteSignatory] = useState('')
   const [editingId, setEditingId] = useState(null)
   const editInputRef = useRef(null)
   const [canvasTool, setCanvasTool] = useState('select')
@@ -150,6 +137,14 @@ export default function TemplateEditorPage() {
         if (!alive) return
         const rows = Array.isArray(data) ? data : data?.results || []
         if (rows.length) setFields(rows)
+      })
+      .catch(() => {})
+    certificateService
+      .settings()
+      .then((s) => {
+        if (!alive || !s) return
+        setInstituteSignatureUrl(s.signature_image_url || '')
+        setInstituteSignatory(s.authorized_signatory || '')
       })
       .catch(() => {})
     return () => {
@@ -314,6 +309,24 @@ export default function TemplateEditorPage() {
     const file = event.target.files?.[0] || null
     event.target.value = ''
     setBackgroundFile(file)
+    if (!file || !file.type?.startsWith('image/')) return
+    const probeUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const detected = img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape'
+      setOrientation((prev) => {
+        if (prev !== detected) {
+          showToast(
+            `Switched page orientation to A4 ${detected === 'portrait' ? 'Portrait' : 'Landscape'} to match photo.`,
+            'info',
+          )
+        }
+        return detected
+      })
+      URL.revokeObjectURL(probeUrl)
+    }
+    img.onerror = () => URL.revokeObjectURL(probeUrl)
+    img.src = probeUrl
   }
 
   const canvasPercentFromEvent = (event) => {
@@ -382,9 +395,10 @@ export default function TemplateEditorPage() {
     return created.id
   }
 
-  const onImageFile = async (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  const uploadAndInsertImage = async (
+    file,
+    { x = 50, y = 75, width = 18, successMessage = 'Image added.' } = {},
+  ) => {
     if (!file) return
     setUploadingAsset(true)
     try {
@@ -394,16 +408,32 @@ export default function TemplateEditorPage() {
         type: 'image',
         src: asset.path || asset.url,
         previewUrl: asset.url,
-        x: 50,
-        y: 75,
-        width: 18,
+        x,
+        y,
+        width,
       })
-      showToast('Image added.', 'success')
+      showToast(successMessage, 'success')
     } catch (err) {
       showToast(err?.response?.data?.detail || 'Image upload failed.', 'error')
     } finally {
       setUploadingAsset(false)
     }
+  }
+
+  const onImageFile = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    await uploadAndInsertImage(file)
+  }
+
+  const handleInsertSignature = async (file) => {
+    await uploadAndInsertImage(file, {
+      x: 75,
+      y: 78,
+      width: 18,
+      successMessage: 'Signature added. Drag to position it.',
+    })
+    setSignatureOpen(false)
   }
 
   const deleteElement = (id) => {
@@ -730,6 +760,15 @@ export default function TemplateEditorPage() {
             type="button"
             className="cert-btn-outline cert-btn-sm"
             disabled={uploadingAsset}
+            onClick={() => setSignatureOpen(true)}
+          >
+            <FaIcon icon="pen" className="h-3.5 w-3.5" />
+            Add signature
+          </button>
+          <button
+            type="button"
+            className="cert-btn-outline cert-btn-sm"
+            disabled={uploadingAsset}
             onClick={() => imageInputRef.current?.click()}
           >
             <FaIcon icon="image" className="h-3.5 w-3.5" />
@@ -746,14 +785,18 @@ export default function TemplateEditorPage() {
             <FaIcon icon="qrcode" className="h-3.5 w-3.5" />
             Add QR
           </button>
+          <span className="ml-auto hidden rounded-full bg-[var(--cert-ivory)] px-2.5 py-1 text-[0.68rem] font-semibold text-[var(--cert-navy)] sm:inline-flex">
+            {orientation === 'portrait' ? 'A4 Portrait · 210 × 297 mm' : 'A4 Landscape · 297 × 210 mm'}
+          </span>
           {canvasTool === 'erase' ? (
             <p className="w-full text-[0.7rem] text-[var(--cert-muted)]">
-              Drag on the certificate to cover old print. Then Add text / field / image on top. Press Erase again to
+              Drag on the certificate to cover old print. Then Add text / field / signature on top. Press Erase again to
               exit.
             </p>
           ) : (
             <p className="w-full text-[0.7rem] text-[var(--cert-muted)]">
-              Upload a background image or PDF, then place text, dynamic fields, images, or a QR code on top.
+              Upload a photo or PDF, then place text, dynamic fields, signatures, images, or a QR code inside the dashed
+              A4 print-safe frame.
             </p>
           )}
         </div>
@@ -784,6 +827,10 @@ export default function TemplateEditorPage() {
               setSelectedId(null)
             }}
           >
+            <div
+              className="pointer-events-none absolute inset-[2.2%] rounded-[2px] border border-dashed border-[var(--cert-navy)]/20"
+              aria-hidden
+            />
             {[...elements]
               .sort((a, b) => (Number(a.zIndex) || 0) - (Number(b.zIndex) || 0))
               .map((el) => {
@@ -1217,10 +1264,14 @@ export default function TemplateEditorPage() {
                     onChange={(e) => updateSelected({ fontFamily: e.target.value })}
                     style={{ fontFamily: cssFontFamily(selected.fontFamily || 'cormorant') }}
                   >
-                    {FONT_FAMILIES.map((f) => (
-                      <option key={f.value} value={f.value} style={{ fontFamily: cssFontFamily(f.value) }}>
-                        {f.label}
-                      </option>
+                    {CERTIFICATE_FONT_GROUPS.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.fonts.map((f) => (
+                          <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </label>
@@ -1365,6 +1416,15 @@ export default function TemplateEditorPage() {
       >
         <DynamicFieldsManager embedded onFieldsChange={setFields} />
       </Modal>
+
+      <SignatureModal
+        isOpen={signatureOpen}
+        onClose={() => setSignatureOpen(false)}
+        onInsert={handleInsertSignature}
+        busy={uploadingAsset}
+        savedSignatureUrl={instituteSignatureUrl}
+        defaultSignatory={instituteSignatory}
+      />
     </div>
   )
 }

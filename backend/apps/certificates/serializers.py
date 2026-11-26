@@ -390,6 +390,7 @@ class PublicVerifySerializer(serializers.Serializer):
     duration = serializers.CharField(allow_blank=True, required=False)
     replaces = serializers.CharField(allow_blank=True, required=False)
     superseded_by = serializers.CharField(allow_blank=True, required=False)
+    download_url = serializers.CharField(allow_blank=True, required=False)
     message = serializers.CharField()
 
 

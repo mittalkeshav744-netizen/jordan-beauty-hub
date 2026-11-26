@@ -218,6 +218,22 @@ def verification_url(public_id):
     return f"{base.rstrip('/')}/{public_id}"
 
 
+def qr_download_url(public_id):
+    """Public URL encoded inside the certificate QR code to download the issued PDF directly."""
+    from urllib.parse import urlsplit
+
+    institute = get_institute()
+    base = (institute.verification_base_url or "").strip()
+    origin = ""
+    if base:
+        parsed = urlsplit(base)
+        if parsed.scheme and parsed.netloc:
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+    if not origin:
+        origin = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    return f"{origin}/api/certificates/verify/{public_id}/download/"
+
+
 def dashboard_stats():
     students = CertificateStudent.objects.filter(is_active=True).count()
     courses = Course.objects.filter(is_active=True).count()
@@ -517,17 +533,71 @@ def _read_background_bytes(bg_field):
     return data, name
 
 
-def _merge_pdf_background(background_pdf: bytes, overlay_pdf: bytes) -> bytes:
-    from pypdf import PdfReader, PdfWriter
+def _normalized_page_metrics(page):
+    """Return (left, bottom, width, height) after applying any /Rotate entry cleanly."""
+    if getattr(page, "rotation", 0):
+        page.transfer_rotation_to_content()
+    box = page.cropbox or page.mediabox
+    left = float(box.left)
+    bottom = float(box.bottom)
+    width = max(1.0, float(box.width))
+    height = max(1.0, float(box.height))
+    return left, bottom, width, height
+
+
+def _merge_pdf_background(background_pdf: bytes, overlay_pdf: bytes, target_page=None) -> bytes:
+    from pypdf import PageObject, PdfReader, PdfWriter, Transformation
+    from reportlab.lib.pagesizes import A4, landscape
 
     bg_reader = PdfReader(io.BytesIO(background_pdf))
     overlay_reader = PdfReader(io.BytesIO(overlay_pdf))
     if not bg_reader.pages or not overlay_reader.pages:
         return overlay_pdf
-    page = bg_reader.pages[0]
-    page.merge_page(overlay_reader.pages[0])
+
+    bg_page = bg_reader.pages[0]
+    overlay_page = overlay_reader.pages[0]
+    default_w, default_h = target_page or landscape(A4)
+    _, _, ov_w, ov_h = _normalized_page_metrics(overlay_page)
+    target_w = float(default_w or ov_w)
+    target_h = float(default_h or ov_h)
+
+    left, bottom, bg_w, bg_h = _normalized_page_metrics(bg_page)
+    canvas_page = PageObject.create_blank_page(width=target_w, height=target_h)
+    bg_transform = Transformation().translate(-left, -bottom).scale(target_w / bg_w, target_h / bg_h)
+    canvas_page.merge_transformed_page(bg_page, bg_transform)
+    canvas_page.merge_page(overlay_page)
+
     writer = PdfWriter()
-    writer.add_page(page)
+    writer.add_page(canvas_page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def fit_pdf_for_a4_print(pdf_bytes: bytes, margin_mm: float = 5.0) -> bytes:
+    """Normalize every page to ISO A4 with safe printable margins so printers do not crop edges."""
+    from pypdf import PageObject, PdfReader, PdfWriter, Transformation
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    writer = PdfWriter()
+    margin = max(0.0, float(margin_mm)) * mm
+
+    for src_page in reader.pages:
+        left, bottom, src_w, src_h = _normalized_page_metrics(src_page)
+        target_w, target_h = landscape(A4) if src_w >= src_h else A4
+        usable_w = max(10.0, target_w - 2.0 * margin)
+        usable_h = max(10.0, target_h - 2.0 * margin)
+        scale = min(usable_w / src_w, usable_h / src_h)
+        offset_x = (target_w - src_w * scale) / 2.0
+        offset_y = (target_h - src_h * scale) / 2.0
+
+        dest_page = PageObject.create_blank_page(width=target_w, height=target_h)
+        transform = Transformation().translate(-left, -bottom).scale(scale, scale).translate(offset_x, offset_y)
+        dest_page.merge_transformed_page(src_page, transform)
+        writer.add_page(dest_page)
+
     out = io.BytesIO()
     writer.write(out)
     return out.getvalue()
@@ -563,7 +633,6 @@ def merge_certificate_pdfs(certificates) -> bytes:
     out = io.BytesIO()
     writer.write(out)
     return out.getvalue()
-    return out.getvalue()
 
 
 def _parse_hex_color(value, fallback=(0.1, 0.15, 0.27)):
@@ -584,53 +653,147 @@ def _parse_hex_color(value, fallback=(0.1, 0.15, 0.27)):
     return fallback
 
 
-_CERT_FONTS_REGISTERED = False
-_CERT_SCRIPT_FONT_REGISTERED = False
+_FONTS_INITIALIZED = False
+_REGISTERED_TTF_NAMES = set()
+
+# Canonical font key -> (TTF filename prefix under fonts/, built-in PDF fallback family)
+_CUSTOM_FONT_SPECS = {
+    "open-sans": ("OpenSans", "Helvetica"),
+    "poppins": ("Poppins", "Helvetica"),
+    "roboto": ("Roboto", "Helvetica"),
+    "lato": ("Lato", "Helvetica"),
+    "montserrat": ("Montserrat", "Helvetica"),
+    "inter": ("Inter", "Helvetica"),
+    "nunito": ("Nunito", "Helvetica"),
+    "raleway": ("Raleway", "Helvetica"),
+    "cormorant": ("CormorantGaramond", "Times"),
+    "playfair": ("PlayfairDisplay", "Times"),
+    "merriweather": ("Merriweather", "Times"),
+    "lora": ("Lora", "Times"),
+    "cinzel": ("Cinzel", "Times"),
+    "libre-baskerville": ("LibreBaskerville", "Times"),
+    "script": ("GreatVibes", "Times"),
+    "dancing-script": ("DancingScript", "Times"),
+    "alex-brush": ("AlexBrush", "Times"),
+    "pacifico": ("Pacifico", "Times"),
+    "allura": ("Allura", "Times"),
+    "oswald": ("Oswald", "Helvetica"),
+    "bricolage": ("BricolageGrotesque", "Helvetica"),
+    "roboto-mono": ("RobotoMono", "Courier"),
+}
+
+_FONT_ALIASES = {
+    "opensans": "open-sans",
+    "open sans": "open-sans",
+    "sans": "open-sans",
+    "sans-serif": "helvetica",
+    "cormorant-garamond": "cormorant",
+    "cormorant garamond": "cormorant",
+    "garamond": "cormorant",
+    "cormorantgaramond": "cormorant",
+    "playfair-display": "playfair",
+    "playfair display": "playfair",
+    "playfairdisplay": "playfair",
+    "libre baskerville": "libre-baskerville",
+    "librebaskerville": "libre-baskerville",
+    "great-vibes": "script",
+    "great vibes": "script",
+    "greatvibes": "script",
+    "cursive": "script",
+    "dancing script": "dancing-script",
+    "dancingscript": "dancing-script",
+    "alex brush": "alex-brush",
+    "alexbrush": "alex-brush",
+    "bricolage-grotesque": "bricolage",
+    "bricolage grotesque": "bricolage",
+    "bricolagegrotesque": "bricolage",
+    "roboto mono": "roboto-mono",
+    "robotomono": "roboto-mono",
+    "times-roman": "times",
+    "times new roman": "times",
+    "serif": "times",
+    "mono": "courier",
+    "monospace": "courier",
+}
+
+_BUILTIN_PDF_FAMILIES = {
+    "helvetica": {
+        (False, False): "Helvetica",
+        (True, False): "Helvetica-Bold",
+        (False, True): "Helvetica-Oblique",
+        (True, True): "Helvetica-BoldOblique",
+    },
+    "times": {
+        (False, False): "Times-Roman",
+        (True, False): "Times-Bold",
+        (False, True): "Times-Italic",
+        (True, True): "Times-BoldItalic",
+    },
+    "courier": {
+        (False, False): "Courier",
+        (True, False): "Courier-Bold",
+        (False, True): "Courier-Oblique",
+        (True, True): "Courier-BoldOblique",
+    },
+}
 
 
 def _register_certificate_fonts():
-    """Register bundled TTFs (Cormorant Garamond, Great Vibes) once for ReportLab."""
-    global _CERT_FONTS_REGISTERED, _CERT_SCRIPT_FONT_REGISTERED
-    if _CERT_FONTS_REGISTERED:
+    """Register all bundled TTFs in apps/certificates/fonts/ once for ReportLab."""
+    global _FONTS_INITIALIZED
+    if _FONTS_INITIALIZED:
         return
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
     fonts_dir = Path(__file__).resolve().parent / "fonts"
-    regular = fonts_dir / "CormorantGaramond-Regular.ttf"
-    bold = fonts_dir / "CormorantGaramond-Bold.ttf"
-    script = fonts_dir / "GreatVibes-Regular.ttf"
-    try:
-        if regular.is_file():
-            pdfmetrics.registerFont(TTFont("CormorantGaramond", str(regular)))
-        if bold.is_file():
-            pdfmetrics.registerFont(TTFont("CormorantGaramond-Bold", str(bold)))
-        if script.is_file():
-            pdfmetrics.registerFont(TTFont("GreatVibes", str(script)))
-            _CERT_SCRIPT_FONT_REGISTERED = True
-        _CERT_FONTS_REGISTERED = True
-    except Exception:  # noqa: BLE001 — fall back to built-in fonts
-        _CERT_FONTS_REGISTERED = False
-        _CERT_SCRIPT_FONT_REGISTERED = False
+    for font_path in sorted(fonts_dir.glob("*.ttf")):
+        font_name = font_path.stem
+        try:
+            pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
+            _REGISTERED_TTF_NAMES.add(font_name)
+        except Exception:  # noqa: BLE001 — fall back cleanly if a font file cannot load
+            continue
+    _FONTS_INITIALIZED = True
+
+
+def _normalize_font_key(raw_family):
+    key = (raw_family or "helvetica").strip().lower().replace("_", "-")
+    if key in _FONT_ALIASES:
+        return _FONT_ALIASES[key]
+    spaced = key.replace("-", " ")
+    if spaced in _FONT_ALIASES:
+        return _FONT_ALIASES[spaced]
+    return key
+
+
+def _variant_suffix_candidates(bold, italic):
+    if bold and italic:
+        return ("BoldItalic", "Bold", "Italic", "Regular")
+    if bold:
+        return ("Bold", "Regular")
+    if italic:
+        return ("Italic", "Regular")
+    return ("Regular", "Bold")
 
 
 def _pdf_font_name(el):
     _register_certificate_fonts()
-    family = (el.get("fontFamily") or "helvetica").strip().lower()
-    bold = (el.get("fontWeight") or "") in ("bold", "700", 700)
-    if family in ("script", "great-vibes", "greatvibes", "cursive"):
-        return "GreatVibes" if _CERT_SCRIPT_FONT_REGISTERED else "Times-Italic"
-    if family in ("cormorant", "cormorant-garamond", "garamond", "cormorantgaramond"):
-        if bold and _CERT_FONTS_REGISTERED:
-            return "CormorantGaramond-Bold"
-        if _CERT_FONTS_REGISTERED:
-            return "CormorantGaramond"
-        return "Times-Bold" if bold else "Times-Roman"
-    if family in ("times", "times-roman", "serif"):
-        return "Times-Bold" if bold else "Times-Roman"
-    if family in ("courier", "mono", "monospace"):
-        return "Courier-Bold" if bold else "Courier"
-    return "Helvetica-Bold" if bold else "Helvetica"
+    family = _normalize_font_key(el.get("fontFamily"))
+    bold = str(el.get("fontWeight") or "").strip().lower() in ("bold", "600", "700", "800")
+    italic = str(el.get("fontStyle") or "").strip().lower() == "italic"
+
+    spec = _CUSTOM_FONT_SPECS.get(family)
+    if spec is not None:
+        prefix, fallback_family = spec
+        for suffix in _variant_suffix_candidates(bold, italic):
+            candidate = f"{prefix}-{suffix}"
+            if candidate in _REGISTERED_TTF_NAMES:
+                return candidate
+        return _BUILTIN_PDF_FAMILIES[fallback_family.lower()][(bold, italic)]
+
+    builtin = _BUILTIN_PDF_FAMILIES.get(family, _BUILTIN_PDF_FAMILIES["helvetica"])
+    return builtin[(bold, italic)]
 
 
 def _sorted_layout_elements(layout_json):
@@ -706,7 +869,7 @@ def _draw_qr(c, certificate, x, y, size):
     import qrcode
 
     qr = qrcode.QRCode(box_size=4, border=1)
-    qr.add_data(verification_url(certificate.public_id))
+    qr.add_data(qr_download_url(certificate.public_id))
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     qr_buf = io.BytesIO()
@@ -787,14 +950,17 @@ def generate_certificate_pdf_bytes(certificate):
             raw = _resolve_image_bytes(el)
             if not raw:
                 continue
-            box = (width_pct / 100.0) * width if width_pct > 0 else min(width, height) * 0.18
+            draw_w = (width_pct / 100.0) * width if width_pct > 0 else min(width, height) * 0.18
             try:
+                reader = ImageReader(io.BytesIO(raw))
+                img_w, img_h = reader.getSize()
+                draw_h = draw_w * (img_h / img_w) if img_w else draw_w
                 c.drawImage(
-                    ImageReader(io.BytesIO(raw)),
-                    x - box / 2.0,
-                    y - box / 2.0,
-                    box,
-                    box,
+                    reader,
+                    x - draw_w / 2.0,
+                    y - draw_h / 2.0,
+                    draw_w,
+                    draw_h,
                     mask="auto",
                     preserveAspectRatio=True,
                 )
@@ -861,7 +1027,7 @@ def generate_certificate_pdf_bytes(certificate):
     overlay = buffer.getvalue()
     if use_pdf_background:
         try:
-            return _merge_pdf_background(bg_bytes, overlay)
+            return _merge_pdf_background(bg_bytes, overlay, target_page=page)
         except Exception:  # noqa: BLE001
             return overlay
     return overlay
@@ -947,6 +1113,14 @@ def revoke_certificate(certificate, user=None, reason=""):
         actor=user,
     )
     return certificate
+
+
+@transaction.atomic
+def delete_certificate(certificate):
+    """Permanently remove a mistakenly issued certificate record and its generated PDF."""
+    if certificate.pdf:
+        certificate.pdf.delete(save=False)
+    certificate.delete()
 
 
 def _deliver_certificate_email_log(log):

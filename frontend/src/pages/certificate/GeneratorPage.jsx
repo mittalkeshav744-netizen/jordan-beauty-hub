@@ -28,7 +28,9 @@ export default function GeneratorPage() {
   const [job, setJob] = useState(null)
   const [busy, setBusy] = useState(false)
   const [printBusy, setPrintBusy] = useState(false)
+  const [issuedByStudent, setIssuedByStudent] = useState({})
   const autoPrintedJobRef = useRef(null)
+  const notifiedJobRef = useRef(null)
 
   useEffect(() => {
     Promise.all([
@@ -51,12 +53,26 @@ export default function GeneratorPage() {
     if (!courseId) {
       setGroups([])
       setStudents([])
+      setIssuedByStudent({})
       return undefined
     }
     let alive = true
     certificateService.listGroups({ course: courseId, page_size: 200 }).then((d) => {
       if (alive) setGroups(d.results || [])
     })
+    certificateService
+      .listIssued({ course: courseId, status: 'issued', page_size: 200 })
+      .then((d) => {
+        if (!alive) return
+        const map = {}
+        for (const row of d.results || []) {
+          if (row.student && !map[row.student]) map[row.student] = row
+        }
+        setIssuedByStudent(map)
+      })
+      .catch(() => {
+        if (alive) setIssuedByStudent({})
+      })
     const params = { page_size: 200, active: '1' }
     if (groupId) params.group = groupId
     certificateService.listStudents(params).then((d) => {
@@ -98,18 +114,23 @@ export default function GeneratorPage() {
     return []
   })()
 
-  const fetchBatchBlob = async (items) => {
+  const fetchBatchBlob = async (items, { fitA4 = false } = {}) => {
     const ids = items.map((item) => item.id).filter(Boolean)
-    if (ids.length === 1) return certificateService.downloadPdf(ids[0])
-    if (ids.length > 0) return certificateService.printBundle({ certificate_ids: ids })
-    return certificateService.printBundle({ public_ids: items.map((item) => item.public_id) })
+    if (ids.length === 1) {
+      return fitA4 ? certificateService.printPdf(ids[0]) : certificateService.downloadPdf(ids[0])
+    }
+    if (ids.length > 0) return certificateService.printBundle({ certificate_ids: ids, fit_a4: fitA4 })
+    return certificateService.printBundle({
+      public_ids: items.map((item) => item.public_id),
+      fit_a4: fitA4,
+    })
   }
 
   const printGenerated = async (items) => {
     if (!items.length) return
     setPrintBusy(true)
     try {
-      const blob = await fetchBatchBlob(items)
+      const blob = await fetchBatchBlob(items, { fitA4: true })
       const label = items.length === 1 ? `Print ${items[0].public_id}` : `Print ${items.length} certificates`
       printPdfBlob(blob, label)
     } catch (err) {
@@ -123,7 +144,7 @@ export default function GeneratorPage() {
     if (!items.length) return
     setPrintBusy(true)
     try {
-      const blob = await fetchBatchBlob(items)
+      const blob = await fetchBatchBlob(items, { fitA4: false })
       const filename = items.length === 1 ? `${items[0].public_id}.pdf` : 'certificates-bundle.pdf'
       downloadPdfBlob(blob, filename)
     } catch (err) {
@@ -140,13 +161,42 @@ export default function GeneratorPage() {
     printGenerated(createdItems)
   }, [autoPrint, job?.id, job?.status, createdItems.length])
 
+  useEffect(() => {
+    if (!job?.id || (job.status !== 'completed' && job.status !== 'failed')) return
+    if (notifiedJobRef.current === job.id) return
+    notifiedJobRef.current = job.id
+    if (job.status === 'completed' && createdItems.length > 0 && courseId) {
+      certificateService
+        .listIssued({ course: courseId, status: 'issued', page_size: 200 })
+        .then((d) => {
+          const map = {}
+          for (const row of d.results || []) {
+            if (row.student && !map[row.student]) map[row.student] = row
+          }
+          setIssuedByStudent(map)
+        })
+        .catch(() => {})
+    }
+    if (job.status === 'failed' || (createdItems.length === 0 && job.result?.errors?.length)) {
+      const firstErr = job.error_message || job.result?.errors?.[0]?.error || 'No certificates were generated.'
+      showToast(firstErr, 'error')
+    } else if (job.status === 'completed' && createdItems.length > 0) {
+      showToast(`Generated ${createdItems.length} certificate(s).`, 'success')
+    }
+  }, [job?.id, job?.status, createdItems.length, courseId, showToast, job?.error_message, job?.result])
+
   const filteredStudents = students.filter((s) => {
     const q = studentSearch.trim().toLowerCase()
     if (!q) return true
     return String(s.name || '').toLowerCase().includes(q)
   })
 
-  const generate = async () => {
+  const generate = async (overrideForceReissue) => {
+    const reissueFlag =
+      typeof overrideForceReissue === 'boolean' ? overrideForceReissue : forceReissue
+    if (typeof overrideForceReissue === 'boolean') {
+      setForceReissue(overrideForceReissue)
+    }
     if (!courseId || !templateId || !selected.length) {
       showToast('Select course, template and at least one student.', 'error')
       return
@@ -162,10 +212,11 @@ export default function GeneratorPage() {
         issue_date: issueDate || undefined,
         grade,
         custom_data: customFields.length ? customData : undefined,
-        force_reissue: forceReissue,
+        force_reissue: reissueFlag,
         send_email: sendEmail,
       })
       autoPrintedJobRef.current = null
+      notifiedJobRef.current = null
       setJob(created)
       showToast('Generation started.', 'success')
     } catch (err) {
@@ -291,14 +342,20 @@ export default function GeneratorPage() {
             </div>
           </div>
           {students.length > 0 ? (
-            <input
-              type="search"
-              className="cert-input"
-              placeholder="Filter students by name…"
-              value={studentSearch}
-              onChange={(e) => setStudentSearch(e.target.value)}
-              aria-label="Filter students"
-            />
+            <div className="relative">
+              <FaIcon
+                icon="search"
+                className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cert-muted)]"
+              />
+              <input
+                type="search"
+                className="cert-input cert-input--search pl-9"
+                placeholder="Filter students by name…"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                aria-label="Filter students"
+              />
+            </div>
           ) : null}
           <ul className="max-h-64 divide-y divide-[var(--cert-line)] overflow-y-auto rounded-[var(--cert-radius)] border border-[var(--cert-line)]">
             {filteredStudents.length === 0 ? (
@@ -308,26 +365,42 @@ export default function GeneratorPage() {
                   : 'Select a course above to load students.'}
               </li>
             ) : (
-              filteredStudents.map((s) => (
-                <li key={s.id} className="px-3 py-2">
-                  <label className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-2.5">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[var(--cert-navy)]"
-                        checked={selected.includes(String(s.id))}
-                        onChange={(e) =>
-                          setSelected((ids) =>
-                            e.target.checked ? [...ids, String(s.id)] : ids.filter((id) => id !== String(s.id)),
-                          )
-                        }
-                      />
-                      <span className="font-medium">{s.name}</span>
-                    </span>
-                    <span className="cert-badge cert-badge--issued">{s.status}</span>
-                  </label>
-                </li>
-              ))
+              filteredStudents.map((s) => {
+                const existing = issuedByStudent[s.id]
+                return (
+                  <li key={s.id} className="px-3 py-2">
+                    <label className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[var(--cert-navy)]"
+                          checked={selected.includes(String(s.id))}
+                          onChange={(e) =>
+                            setSelected((ids) =>
+                              e.target.checked ? [...ids, String(s.id)] : ids.filter((id) => id !== String(s.id)),
+                            )
+                          }
+                        />
+                        <span className="font-medium">{s.name}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        {existing ? (
+                          <Link
+                            to={`/certificate/issued/${existing.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cert-badge cert-badge--reissued hover:underline"
+                            title="Certificate already exists for this course"
+                          >
+                            Issued: {existing.public_id}
+                          </Link>
+                        ) : (
+                          <span className="cert-badge cert-badge--issued">{s.status}</span>
+                        )}
+                      </span>
+                    </label>
+                  </li>
+                )
+              })
             )}
           </ul>
         </div>
@@ -350,7 +423,7 @@ export default function GeneratorPage() {
           </label>
         </div>
 
-        <button type="button" className="cert-btn-primary" disabled={busy} onClick={generate}>
+        <button type="button" className="cert-btn-primary" disabled={busy} onClick={() => generate()}>
           <FaIcon icon="generator" className="h-3.5 w-3.5" />
           {busy ? 'Starting…' : `Generate (${selected.length})`}
         </button>
@@ -378,11 +451,31 @@ export default function GeneratorPage() {
             <p className="mt-2 text-sm text-[var(--cert-danger)]">{job.error_message}</p>
           ) : null}
           {job.result?.errors?.length ? (
-            <ul className="mt-2 text-sm text-[var(--cert-danger)]">
-              {job.result.errors.map((err, i) => (
-                <li key={i}>{err.error}</li>
-              ))}
-            </ul>
+            <div className="mt-3 rounded-[var(--cert-radius)] border border-[var(--cert-danger)]/25 bg-[#fdecea] p-3 text-sm text-[var(--cert-danger)]">
+              <ul className="list-disc space-y-1 pl-4">
+                {job.result.errors.map((err, i) => (
+                  <li key={i}>{err.error}</li>
+                ))}
+              </ul>
+              {createdItems.length === 0 &&
+              !forceReissue &&
+              job.result.errors.some((e) => String(e.error || '').toLowerCase().includes('already exists')) ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="cert-btn-primary cert-btn-sm"
+                    disabled={busy}
+                    onClick={() => generate(true)}
+                  >
+                    <FaIcon icon="rotate" className="h-3.5 w-3.5" />
+                    Reissue &amp; generate new certificate
+                  </button>
+                  <Link to="/certificate/issued" className="cert-btn-outline cert-btn-sm">
+                    View existing certificates
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {job.status === 'completed' && createdItems.length > 0 ? (
             <div className="mt-4 space-y-3 border-t border-[var(--cert-line)] pt-4">

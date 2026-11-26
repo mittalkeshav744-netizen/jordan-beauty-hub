@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 
 import CertificateStatusBadge from '../../components/certificate/CertificateStatusBadge'
+import ConfirmationModal from '../../components/certificate/ConfirmationModal'
 import DataTable from '../../components/certificate/DataTable'
 import EmailStatusBadge from '../../components/certificate/EmailStatusBadge'
 import EmptyState from '../../components/certificate/EmptyState'
@@ -21,6 +22,8 @@ export default function IssuedPage() {
   const list = useCertList((params) => certificateService.listIssued(params))
   const [selected, setSelected] = useState(() => new Set())
   const [printBusy, setPrintBusy] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [actionBusy, setActionBusy] = useState(false)
 
   const toggle = (id) => {
     setSelected((prev) => {
@@ -37,8 +40,8 @@ export default function IssuedPage() {
     try {
       const blob =
         ids.length === 1
-          ? await certificateService.downloadPdf(ids[0])
-          : await certificateService.printBundle({ certificate_ids: ids })
+          ? await certificateService.printPdf(ids[0])
+          : await certificateService.printBundle({ certificate_ids: ids, fit_a4: true })
       printPdfBlob(blob, label)
     } catch (err) {
       showToast(err?.response?.data?.detail || 'Could not open print dialog.', 'error')
@@ -54,7 +57,7 @@ export default function IssuedPage() {
       const blob =
         ids.length === 1
           ? await certificateService.downloadPdf(ids[0])
-          : await certificateService.printBundle({ certificate_ids: ids })
+          : await certificateService.printBundle({ certificate_ids: ids, fit_a4: false })
       downloadPdfBlob(blob, filename)
     } catch (err) {
       showToast(err?.response?.data?.detail || 'Download failed.', 'error')
@@ -177,6 +180,28 @@ export default function IssuedPage() {
                     >
                       <FaIcon icon="eye" className="h-3.5 w-3.5" />
                     </Link>
+                    {r.status === 'issued' ? (
+                      <button
+                        type="button"
+                        className={`${iconBtn} cert-icon-btn--danger`}
+                        title="Cancel / revoke certificate"
+                        aria-label={`Cancel ${r.public_id}`}
+                        disabled={actionBusy}
+                        onClick={() => setConfirmAction({ mode: 'revoke', cert: r })}
+                      >
+                        <FaIcon icon="ban" className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`${iconBtn} cert-icon-btn--danger`}
+                      title="Delete certificate"
+                      aria-label={`Delete ${r.public_id}`}
+                      disabled={actionBusy}
+                      onClick={() => setConfirmAction({ mode: 'delete', cert: r })}
+                    >
+                      <FaIcon icon="trash" className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 ),
               },
@@ -191,6 +216,49 @@ export default function IssuedPage() {
           />
         </>
       ) : null}
+
+      <ConfirmationModal
+        open={Boolean(confirmAction)}
+        title={
+          confirmAction?.mode === 'delete'
+            ? `Delete ${confirmAction?.cert?.public_id}?`
+            : `Cancel / revoke ${confirmAction?.cert?.public_id}?`
+        }
+        message={
+          confirmAction?.mode === 'delete'
+            ? 'This permanently removes the certificate record and PDF file so you can re-generate cleanly. This cannot be undone.'
+            : 'This cancels the certificate and marks it revoked so public QR/serial checks show it as invalid.'
+        }
+        danger
+        busy={actionBusy}
+        confirmLabel={confirmAction?.mode === 'delete' ? 'Delete' : 'Cancel certificate'}
+        onClose={() => !actionBusy && setConfirmAction(null)}
+        onConfirm={async () => {
+          if (!confirmAction?.cert) return
+          const { mode, cert } = confirmAction
+          setActionBusy(true)
+          try {
+            if (mode === 'delete') {
+              await certificateService.deleteIssued(cert.id)
+              setSelected((prev) => {
+                const next = new Set(prev)
+                next.delete(cert.id)
+                return next
+              })
+              showToast(`Deleted ${cert.public_id}.`, 'success')
+            } else {
+              await certificateService.revoke(cert.id, 'Cancelled by administrator')
+              showToast(`Cancelled ${cert.public_id}.`, 'success')
+            }
+            setConfirmAction(null)
+            list.reload()
+          } catch (err) {
+            showToast(err?.response?.data?.detail || 'Action failed.', 'error')
+          } finally {
+            setActionBusy(false)
+          }
+        }}
+      />
     </div>
   )
 }

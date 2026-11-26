@@ -6,7 +6,7 @@ from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from django.utils.text import slugify
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import (
     action,
     api_view,
@@ -375,13 +375,16 @@ class TemplateViewSet(viewsets.ModelViewSet):
         return Response(TemplateSerializer(clone, context={"request": request}).data, status=201)
 
 
-class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
+class CertificateViewSet(mixins.DestroyModelMixin, viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, IsStaffUser]
     pagination_class = CertificatePagination
     serializer_class = CertificateSerializer
     queryset = Certificate.objects.select_related(
         "student", "course", "group", "template_version__template"
     )
+
+    def perform_destroy(self, instance):
+        services.delete_certificate(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -434,7 +437,27 @@ class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
         cert = self.get_object()
         if not cert.pdf:
             return Response({"detail": "PDF not available."}, status=404)
-        return FileResponse(cert.pdf.open("rb"), as_attachment=True, filename=f"{cert.public_id}.pdf")
+        fit_a4 = str(request.query_params.get("fit_a4", "")).strip().lower() in {"1", "true", "yes"}
+        inline = str(request.query_params.get("inline", "")).strip().lower() in {"1", "true", "yes"}
+        if not fit_a4:
+            return FileResponse(
+                cert.pdf.open("rb"),
+                as_attachment=not inline,
+                filename=f"{cert.public_id}.pdf",
+            )
+        try:
+            cert.pdf.open("rb")
+            raw = cert.pdf.read()
+        finally:
+            try:
+                cert.pdf.close()
+            except OSError:
+                pass
+        fitted = services.fit_pdf_for_a4_print(raw)
+        disposition = "inline" if inline else "attachment"
+        response = HttpResponse(fitted, content_type="application/pdf")
+        response["Content-Disposition"] = f'{disposition}; filename="{cert.public_id}.pdf"'
+        return response
 
     @action(detail=False, methods=["post"], url_path="print-bundle")
     def print_bundle(self, request):
@@ -462,6 +485,10 @@ class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
             merged = services.merge_certificate_pdfs(ordered)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=404)
+
+        fit_a4 = request.data.get("fit_a4", True)
+        if fit_a4 not in (False, "false", "0", 0):
+            merged = services.fit_pdf_for_a4_print(merged)
 
         response = HttpResponse(merged, content_type="application/pdf")
         response["Content-Disposition"] = 'inline; filename="certificates-bundle.pdf"'
@@ -706,6 +733,11 @@ def _public_verify_payload(cert, institute, *, valid, message):
         "duration": getattr(cert.course, "duration_text", "") or "",
         "replaces": cert.replaces.public_id if cert.replaces_id else "",
         "superseded_by": superseded.public_id if superseded else "",
+        "download_url": (
+            f"/api/certificates/verify/{cert.public_id}/download/"
+            if valid and cert.pdf
+            else ""
+        ),
         "message": message,
     }
 
@@ -734,6 +766,7 @@ def verify_certificate(request, public_id):
             "duration": "",
             "replaces": "",
             "superseded_by": "",
+            "download_url": "",
             "message": "No certificate was found for this serial number.",
         }
         return Response(PublicVerifySerializer(payload).data, status=404)
@@ -755,3 +788,23 @@ def verify_certificate(request, public_id):
         message = f"This certificate is not currently valid (status: {cert.status})."
     payload = _public_verify_payload(cert, institute, valid=False, message=message)
     return Response(PublicVerifySerializer(payload).data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([VerifyThrottle])
+def verify_certificate_download(request, public_id):
+    """Download the PDF for an authentic issued certificate (used by printed QR scans)."""
+    try:
+        cert = Certificate.objects.get(public_id__iexact=public_id.strip())
+    except Certificate.DoesNotExist:
+        return Response({"detail": "Certificate not found."}, status=404)
+    if cert.status != Certificate.Status.ISSUED:
+        return Response({"detail": "This certificate is no longer valid."}, status=410)
+    if not cert.pdf:
+        return Response({"detail": "Certificate PDF is not available."}, status=404)
+    return FileResponse(
+        cert.pdf.open("rb"),
+        as_attachment=True,
+        filename=f"{cert.public_id}.pdf",
+    )

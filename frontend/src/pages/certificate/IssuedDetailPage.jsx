@@ -17,6 +17,7 @@ export default function IssuedDetailPage() {
   const [audit, setAudit] = useState([])
   const [loading, setLoading] = useState(true)
   const [revokeOpen, setRevokeOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [scheduleAt, setScheduleAt] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
@@ -101,11 +102,19 @@ export default function IssuedDetailPage() {
             <dd className="mt-0.5 font-medium">{cert.template_name || '—'}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs text-[var(--cert-muted)] uppercase">Verify URL</dt>
-            <dd className="mt-0.5 font-medium break-all">
+            <dt className="text-xs text-[var(--cert-muted)] uppercase">Verify &amp; QR PDF URL</dt>
+            <dd className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-medium break-all">
               <Link to={`/certificate/verify/${cert.public_id}`} className="text-[var(--cert-navy)] hover:underline">
                 /certificate/verify/{cert.public_id}
               </Link>
+              <a
+                href={certificateService.publicDownloadUrl(cert.public_id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[var(--cert-muted)] hover:text-[var(--cert-navy)] hover:underline"
+              >
+                Direct QR PDF link
+              </a>
             </dd>
           </div>
         </dl>
@@ -130,11 +139,11 @@ export default function IssuedDetailPage() {
           <button
             type="button"
             className="cert-btn-outline cert-icon-btn"
-            title="Print"
+            title="Print on A4"
             aria-label="Print"
             onClick={async () => {
               try {
-                const blob = await certificateService.downloadPdf(cert.id)
+                const blob = await certificateService.printPdf(cert.id)
                 printPdfBlob(blob, `Print ${cert.public_id}`)
               } catch {
                 showToast('Could not open print dialog.', 'error')
@@ -176,13 +185,22 @@ export default function IssuedDetailPage() {
             <button
               type="button"
               className="cert-btn-outline cert-icon-btn cert-icon-btn--danger"
-              title="Revoke"
-              aria-label="Revoke"
+              title="Cancel / Revoke"
+              aria-label="Cancel / Revoke"
               onClick={() => setRevokeOpen(true)}
             >
               <FaIcon icon="ban" className="h-3.5 w-3.5" />
             </button>
           ) : null}
+          <button
+            type="button"
+            className="cert-btn-outline cert-icon-btn cert-icon-btn--danger"
+            title="Delete certificate"
+            aria-label="Delete certificate"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <FaIcon icon="trash" className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -232,19 +250,38 @@ export default function IssuedDetailPage() {
 
       <ConfirmationModal
         open={revokeOpen}
-        title="Revoke certificate?"
-        message="Public verification will show this certificate as revoked."
+        title="Cancel / revoke certificate?"
+        message="Public verification will show this certificate as revoked and QR download will stop."
         danger
-        confirmLabel="Revoke"
+        confirmLabel="Cancel certificate"
         onClose={() => setRevokeOpen(false)}
         onConfirm={async () => {
           try {
-            await certificateService.revoke(cert.id, 'Revoked by administrator')
-            showToast('Certificate revoked.', 'success')
+            await certificateService.revoke(cert.id, 'Cancelled by administrator')
+            showToast('Certificate cancelled.', 'success')
             setRevokeOpen(false)
             load()
           } catch (err) {
             showToast(err?.response?.data?.detail || 'Revoke failed.', 'error')
+          }
+        }}
+      />
+
+      <ConfirmationModal
+        open={deleteOpen}
+        title={`Delete ${cert.public_id}?`}
+        message="This permanently deletes the certificate record and PDF file so you can re-generate cleanly."
+        danger
+        confirmLabel="Delete"
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={async () => {
+          try {
+            await certificateService.deleteIssued(cert.id)
+            showToast('Certificate deleted.', 'success')
+            setDeleteOpen(false)
+            navigate('/certificate/issued')
+          } catch (err) {
+            showToast(err?.response?.data?.detail || 'Delete failed.', 'error')
           }
         }}
       />

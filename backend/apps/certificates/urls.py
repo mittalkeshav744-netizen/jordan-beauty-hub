@@ -21,6 +21,7 @@ urlpatterns = [
     path("reports/", views.reports_summary, name="certificate-reports"),
     path("reports/export/", views.reports_export, name="certificate-reports-export"),
     path("queue/process/", views.process_queue, name="certificate-process-queue"),
+    path("verify/<str:public_id>/download/", views.verify_certificate_download, name="certificate-verify-download"),
     path("verify/<str:public_id>/", views.verify_certificate, name="certificate-verify"),
     path("", include(router.urls)),
 ]

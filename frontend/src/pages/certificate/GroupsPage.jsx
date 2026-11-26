@@ -226,10 +226,14 @@ export default function GroupsPage() {
           </>
         }
       >
-        <div className="mb-3">
+        <div className="relative mb-3">
+          <FaIcon
+            icon="search"
+            className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cert-muted)]"
+          />
           <input
             type="search"
-            className="cert-input"
+            className="cert-input cert-input--search pl-9"
             placeholder="Filter students by name or enrollment #"
             value={memberSearch}
             onChange={(e) => setMemberSearch(e.target.value)}

@@ -9,6 +9,7 @@ import VerifyPage from './VerifyPage'
 vi.mock('../../services/certificateService', () => ({
   certificateService: {
     verify: vi.fn(),
+    publicDownloadUrl: (publicId) => `/api/certificates/verify/${encodeURIComponent(publicId)}/download/`,
   },
 }))
 
@@ -49,6 +50,10 @@ describe('VerifyPage', () => {
     expect(screen.getByText('JBH-2026-000042')).toBeInTheDocument()
     expect(screen.getByText('Asha Rao')).toBeInTheDocument()
     expect(screen.getByText('Bridal Makeup')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /download certificate pdf/i })).toHaveAttribute(
+      'href',
+      '/api/certificates/verify/JBH-2026-000042/download/',
+    )
   })
 
   it('shows not-found messaging for unknown serials', async () => {
